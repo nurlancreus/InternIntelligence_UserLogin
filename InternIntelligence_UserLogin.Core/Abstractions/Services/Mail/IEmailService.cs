@@ -1,6 +1,6 @@
 ﻿using InternIntelligence_UserLogin.Core.DTOs.Mail;
 
-namespace InternIntelligence_UserLogin.Core.Abstractions.Mail
+namespace InternIntelligence_UserLogin.Core.Abstractions.Services.Mail
 {
     public interface IEmailService
     {

@@ -1,8 +1,9 @@
-﻿using InternIntelligence_UserLogin.Core.Abstractions;
-using InternIntelligence_UserLogin.Core.Abstractions.Mail;
-using InternIntelligence_UserLogin.Core.Data.Entities;
+﻿using InternIntelligence_UserLogin.Core.Abstractions.Services;
+using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
+using InternIntelligence_UserLogin.Core.Abstractions.Session;
 using InternIntelligence_UserLogin.Core.DTOs.Auth;
 using InternIntelligence_UserLogin.Core.DTOs.Token;
+using InternIntelligence_UserLogin.Core.Entities;
 using InternIntelligence_UserLogin.Core.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
@@ -13,13 +14,14 @@ using System.Text;
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 {
     public class AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IUserService userService,
-        ITokenService tokenService, IUserEmailService userEmailService) : IAuthService
+        ITokenService tokenService, IUserEmailService userEmailService, IJwtSession jwtSession) : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager = userManager;
         private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
         private readonly IUserService _userService = userService;
         private readonly ITokenService _tokenService = tokenService;
         private readonly IUserEmailService _userEmailService = userEmailService;
+        private readonly IJwtSession _jwtSession = jwtSession;
 
         public async Task<TokenDTO> LoginAsync(LoginDTO loginDTO)
         {
@@ -59,8 +61,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             var result = await _userManager.CreateAsync(user, registerDTO.Password);
             if (!result.Succeeded)
             {
-                var errors = result.Errors.Select(e => e.Description);
-                throw new RegisterException($"Registration failed: {string.Join(", ", errors)}");
+                throw new RegisterException($"Registration failed: {Helpers.GetIdentityResultError(result)}");
             }
 
             var emailConfirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -68,18 +69,18 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             await _userEmailService.SendAccountConfirmationEmailAsync(user.Id, user.UserName!, user.Email!, emailConfirmationToken);
         }
 
-        public async Task ConfirmEmailAsync(string userId, string token)
+        public async Task ConfirmEmailAsync(Guid userId, string token)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user is null) throw new RegisterException("User not found.");
 
             var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
 
             var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+
             if (!result.Succeeded)
             {
-                var errors = result.Errors.Select(e => e.Description);
-                throw new RegisterException($"Email confirmation failed: {string.Join(", ", errors)}");
+                throw new RegisterException($"Email confirmation failed: {Helpers.GetIdentityResultError(result)}");
             }
 
             await _userEmailService.SendWelcomeEmailAsync(user.UserName!, user.Email!);
@@ -119,30 +120,33 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             };
         }
 
-        public async Task RequestPasswordResetAsync(string userId)
+        public async Task RequestPasswordResetAsync(Guid userId)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
 
             if (user is null) throw new NotFoundException("User not found.");
+
+            _jwtSession.IsUserAuthorized(user.Id, true);
 
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
 
             await _userEmailService.SendResetPasswordEmailAsync(userId, user.UserName!, user.Email!, resetToken);
         }
 
-        public async Task ResetPasswordAsync(string userId, string token, string newPassword)
+        public async Task ResetPasswordAsync(Guid userId, string token, string newPassword)
         {
-            var user = await _userManager.FindByIdAsync(userId);
+            var user = await _userManager.FindByIdAsync(userId.ToString());
 
             if (user is null) throw new NotFoundException("User not found.");
+
+            _jwtSession.IsUserAuthorized(user.Id, true);
 
             var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
 
             var result = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
             if (!result.Succeeded)
             {
-                var errors = result.Errors.Select(e => e.Description);
-                throw new PasswordResetException($"Password reset failed: {string.Join(", ", errors)}");
+                throw new PasswordResetException($"Password reset failed: {Helpers.GetIdentityResultError(result)}");
             }
         }
     }

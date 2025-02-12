@@ -12,7 +12,7 @@ namespace InternIntelligence_UserLogin.Core.Exceptions
 
         public RegisterException(string message, Exception inner) : base(message, HttpStatusCode.BadRequest, inner) { }
 
-        public RegisterException() : this("Exception happened while registered.") { }
+        public RegisterException() : this("Exception happened while register new user.") { }
         
     }
 }

@@ -1,6 +1,6 @@
-﻿using InternIntelligence_UserLogin.Core.Abstractions;
-using InternIntelligence_UserLogin.Core.Data.Entities;
+﻿using InternIntelligence_UserLogin.Core.Abstractions.Services;
 using InternIntelligence_UserLogin.Core.DTOs.Token;
+using InternIntelligence_UserLogin.Core.Entities;
 using InternIntelligence_UserLogin.Core.Options.Token;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -27,7 +27,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Services
                 new(JwtRegisteredClaimNames.Sub, user.Id.ToString()), // Subject (user id)
                 new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()), // JWT unique ID (JTI)
                 new(JwtRegisteredClaimNames.Iat, new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds().ToString()), // Issued at (Unix timestamp)
-                new(ClaimTypes.NameIdentifier, user.Id), // Unique name identifier of the user (id)
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()), // Unique name identifier of the user (id)
                 new(ClaimTypes.Email, user.Email!), // Email of the user
             };
 

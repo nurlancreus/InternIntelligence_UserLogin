@@ -1,8 +1,8 @@
-﻿using InternIntelligence_UserLogin.Core.Data.Entities;
-using InternIntelligence_UserLogin.Core.DTOs.Token;
+﻿using InternIntelligence_UserLogin.Core.DTOs.Token;
+using InternIntelligence_UserLogin.Core.Entities;
 using System.Security.Claims;
 
-namespace InternIntelligence_UserLogin.Core.Abstractions
+namespace InternIntelligence_UserLogin.Core.Abstractions.Services
 {
     public interface ITokenService
     {

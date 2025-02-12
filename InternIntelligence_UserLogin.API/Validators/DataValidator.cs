@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace InternIntelligence_UserLogin.Validators
+namespace InternIntelligence_UserLogin.API.Validators
 {
     public static class DataValidator
     {

@@ -1,4 +1,4 @@
-﻿using InternIntelligence_UserLogin.Core.Abstractions.Mail;
+﻿using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
 using InternIntelligence_UserLogin.Core.DTOs.Mail;
 using InternIntelligence_UserLogin.Core.Options.Email;
 using Microsoft.AspNetCore.WebUtilities;
@@ -14,7 +14,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
         private readonly IEmailService _emailService = emailService;
         private readonly IEmailTemplateService _emailTemplateService = emailTemplateService;
 
-        public async Task SendAccountConfirmationEmailAsync(string userId, string userName, string email, string confirmationToken)
+        public async Task SendAccountConfirmationEmailAsync(Guid userId, string userName, string email, string confirmationToken)
         {
             var recipientDetails = GenerateRecipient(userName, email);
 
@@ -27,7 +27,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
             await _emailService.SendEmailAsync(recipientDetails, "Account Confirmation", body);
         }
 
-        public async Task SendResetPasswordEmailAsync(string userId, string userName, string email, string resetToken)
+        public async Task SendResetPasswordEmailAsync(Guid userId, string userName, string email, string resetToken)
         {
             var recipientDetails = GenerateRecipient(userName, email);
 

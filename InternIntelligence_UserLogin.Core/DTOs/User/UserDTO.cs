@@ -1,10 +1,10 @@
-﻿using InternIntelligence_UserLogin.Core.Data.Entities;
+﻿using InternIntelligence_UserLogin.Core.Entities;
 
 namespace InternIntelligence_UserLogin.Core.DTOs.User
 {
     public record UserDTO
     {
-        public string Id { get; set; } = string.Empty;
+        public Guid Id { get; set; }
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string UserName { get; set; } = string.Empty;

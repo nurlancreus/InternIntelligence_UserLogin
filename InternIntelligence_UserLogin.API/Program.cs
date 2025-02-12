@@ -1,5 +1,5 @@
 
-using InternIntelligence_UserLogin.Endpoints;
+using InternIntelligence_UserLogin.API.Endpoints;
 
 namespace InternIntelligence_UserLogin.API
 {
@@ -16,7 +16,8 @@ namespace InternIntelligence_UserLogin.API
             app.AddMiddlewares();
 
             app.RegisterAuthEndpoints()
-               .RegisterUserEndpoints();
+               .RegisterUserEndpoints()
+               .RegisterRoleEndpoints();
 
             app.Run();
         }

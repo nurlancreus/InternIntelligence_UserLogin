@@ -1,4 +1,4 @@
-﻿using InternIntelligence_UserLogin.Core.Abstractions.Mail;
+﻿using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
 using InternIntelligence_UserLogin.Core.DTOs.Mail;
 using InternIntelligence_UserLogin.Core.Options.Email;
 using MailKit.Security;
@@ -8,14 +8,9 @@ using SmtpClient = MailKit.Net.Smtp.SmtpClient;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
 {
-    public class EmailService : IEmailService
+    public class EmailService(IOptions<EmailSettings> emailSettings) : IEmailService
     {
-        private readonly EmailSettings _emailConfig;
-
-        public EmailService(IOptions<EmailSettings> emailSettings)
-        {
-            _emailConfig = emailSettings.Value;
-        }
+        private readonly EmailSettings _emailConfig = emailSettings.Value;
 
         public async Task SendEmailAsync(RecipientDetailsDTO recipientDetails, string subject, string body)
         {

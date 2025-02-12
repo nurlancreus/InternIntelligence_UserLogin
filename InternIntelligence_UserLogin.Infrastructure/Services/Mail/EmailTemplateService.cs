@@ -1,4 +1,4 @@
-﻿using InternIntelligence_UserLogin.Core.Abstractions.Mail;
+﻿using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
 {

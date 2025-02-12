@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
-using InternIntelligence_UserLogin.Core.Data.Entities;
+using InternIntelligence_UserLogin.Core.Abstractions.Base;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context
 {
@@ -22,18 +22,18 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context
         static void UpdateAuditableEntities(DbContext dbContext)
         {
             DateTime utcNow = DateTime.UtcNow;
-            var entities = dbContext.ChangeTracker.Entries<ApplicationUser>();
+            var entities = dbContext.ChangeTracker.Entries<IAuditable>();
 
-            foreach (EntityEntry<ApplicationUser> entry in entities)
+            foreach (EntityEntry<IAuditable> entry in entities)
             {
                 if (entry.State == EntityState.Added)
                 {
-                    entry.Property(nameof(ApplicationUser.CreatedAt)).CurrentValue = utcNow;
+                    entry.Property(nameof(IAuditable.CreatedAt)).CurrentValue = utcNow;
                 }
 
                 if (entry.State == EntityState.Modified)
                 {
-                    entry.Property(nameof(ApplicationUser.UpdatedAt)).CurrentValue = utcNow;
+                    entry.Property(nameof(IAuditable.UpdatedAt)).CurrentValue = utcNow;
                 }
             }
         }

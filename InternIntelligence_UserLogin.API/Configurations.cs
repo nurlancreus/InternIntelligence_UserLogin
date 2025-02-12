@@ -2,16 +2,18 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
-using InternIntelligence_UserLogin.Core.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using InternIntelligence_UserLogin.Core.Options.Email;
 using InternIntelligence_UserLogin.Core.Options.Token;
-using InternIntelligence_UserLogin.Core.Abstractions;
 using InternIntelligence_UserLogin.Infrastructure.Persistence.Services;
 using InternIntelligence_UserLogin.Infrastructure.Services;
-using InternIntelligence_UserLogin.Core.Abstractions.Mail;
 using InternIntelligence_UserLogin.Infrastructure.Services.Mail;
 using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
+using InternIntelligence_UserLogin.Core.Entities;
+using InternIntelligence_UserLogin.Core.Abstractions.Session;
+using InternIntelligence_UserLogin.Infrastructure.Services.Session;
+using InternIntelligence_UserLogin.Core.Abstractions.Services;
+using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
 
 namespace InternIntelligence_UserLogin.API
 {
@@ -21,6 +23,9 @@ namespace InternIntelligence_UserLogin.API
         {
             // Add services to the container.
             builder.Services.AddAuthorization();
+
+            // Add HttpContextAccessor
+            builder.Services.AddHttpContextAccessor();
 
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
@@ -32,7 +37,7 @@ namespace InternIntelligence_UserLogin.API
 
             builder.Services.Configure<IdentityOptions>(options =>
             {
-                // Password settings.
+                // Password settings
                 options.Password.RequireDigit = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireNonAlphanumeric = true;
@@ -40,12 +45,16 @@ namespace InternIntelligence_UserLogin.API
                 options.Password.RequiredLength = 12;
                 options.Password.RequiredUniqueChars = 1;
 
-                // Lockout settings.
+                // SignIn settings
+                options.SignIn.RequireConfirmedAccount = false;
+                options.SignIn.RequireConfirmedEmail = true;
+
+                // Lockout settings
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.AllowedForNewUsers = true;
 
-                // User settings.
+                // User settings
                 options.User.AllowedUserNameCharacters =
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
                 options.User.RequireUniqueEmail = true;
@@ -106,7 +115,9 @@ namespace InternIntelligence_UserLogin.API
             #region Register DI Services
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IRoleService, RoleService>();
 
+            builder.Services.AddScoped<IJwtSession, JwtSession>();
             builder.Services.AddScoped<ITokenService, TokenService>();
 
             builder.Services.AddScoped<IEmailService, EmailService>();

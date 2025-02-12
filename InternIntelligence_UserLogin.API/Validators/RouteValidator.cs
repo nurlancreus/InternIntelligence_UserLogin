@@ -1,4 +1,4 @@
-﻿namespace InternIntelligence_UserLogin.Validators
+﻿namespace InternIntelligence_UserLogin.API.Validators
 {
     public static class RouteValidator
     {
