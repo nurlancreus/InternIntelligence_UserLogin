@@ -4,11 +4,16 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using InternIntelligence_UserLogin.Core.Data.Entities;
 using Microsoft.EntityFrameworkCore;
-using InternIntelligence_UserLogin.Context;
 using InternIntelligence_UserLogin.Core.Options.Email;
 using InternIntelligence_UserLogin.Core.Options.Token;
+using InternIntelligence_UserLogin.Core.Abstractions;
+using InternIntelligence_UserLogin.Infrastructure.Persistence.Services;
+using InternIntelligence_UserLogin.Infrastructure.Services;
+using InternIntelligence_UserLogin.Core.Abstractions.Mail;
+using InternIntelligence_UserLogin.Infrastructure.Services.Mail;
+using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
 
-namespace InternIntelligence_UserLogin
+namespace InternIntelligence_UserLogin.API
 {
     public static class Configurations
     {
@@ -98,6 +103,17 @@ namespace InternIntelligence_UserLogin
             builder.Services.AddProblemDetails();
             #endregion
 
+            #region Register DI Services
+            builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+
+            builder.Services.AddScoped<ITokenService, TokenService>();
+
+            builder.Services.AddScoped<IEmailService, EmailService>();
+            builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+            builder.Services.AddScoped<IUserEmailService, UserEmailService>();
+            #endregion
+
             // Register Options pattern
             #region Register Options
             builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailConfiguration"));
@@ -105,7 +121,7 @@ namespace InternIntelligence_UserLogin
             #endregion
         }
 
-        public static void AddMiddlewares(this WebApplication app) 
+        public static void AddMiddlewares(this WebApplication app)
         {
             app.UseExceptionHandler();
 

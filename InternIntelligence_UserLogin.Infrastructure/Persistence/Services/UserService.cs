@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
-namespace InternIntelligence_UserLogin.Services
+namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 {
     public class UserService(IOptions<TokenSettings> options, UserManager<ApplicationUser> userManager) : IUserService
     {

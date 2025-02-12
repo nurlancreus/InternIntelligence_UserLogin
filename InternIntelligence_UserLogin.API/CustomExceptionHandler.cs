@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
 
-namespace InternIntelligence_UserLogin
+namespace InternIntelligence_UserLogin.API
 {
     public class CustomExceptionHandler(IProblemDetailsService problemDetailsService) : IExceptionHandler
     {

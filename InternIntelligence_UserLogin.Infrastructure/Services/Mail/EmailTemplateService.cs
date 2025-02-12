@@ -1,6 +1,6 @@
 ﻿using InternIntelligence_UserLogin.Core.Abstractions.Mail;
 
-namespace InternIntelligence_UserLogin.Services.Mail
+namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
 {
     public class EmailTemplateService : IEmailTemplateService
     {

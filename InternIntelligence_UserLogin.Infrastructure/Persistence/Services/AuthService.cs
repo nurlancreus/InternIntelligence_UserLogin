@@ -1,6 +1,4 @@
-﻿using System.Security.Claims;
-using System.Text;
-using InternIntelligence_UserLogin.Core.Abstractions;
+﻿using InternIntelligence_UserLogin.Core.Abstractions;
 using InternIntelligence_UserLogin.Core.Abstractions.Mail;
 using InternIntelligence_UserLogin.Core.Data.Entities;
 using InternIntelligence_UserLogin.Core.DTOs.Auth;
@@ -9,8 +7,10 @@ using InternIntelligence_UserLogin.Core.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
 
-namespace InternIntelligence_UserLogin.Services
+namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 {
     public class AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IUserService userService,
         ITokenService tokenService, IUserEmailService userEmailService) : IAuthService

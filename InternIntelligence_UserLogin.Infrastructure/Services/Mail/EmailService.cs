@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using MimeKit;
 using SmtpClient = MailKit.Net.Smtp.SmtpClient;
 
-namespace InternIntelligence_UserLogin.Services.Mail
+namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
 {
     public class EmailService : IEmailService
     {

@@ -1,16 +1,16 @@
 ﻿using InternIntelligence_UserLogin.Core.Abstractions;
 using InternIntelligence_UserLogin.Core.Data.Entities;
 using InternIntelligence_UserLogin.Core.DTOs.Token;
+using InternIntelligence_UserLogin.Core.Options.Token;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using System.Text;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Options;
 using System.Security.Cryptography;
-using InternIntelligence_UserLogin.Core.Options.Token;
+using System.Text;
 
-namespace InternIntelligence_UserLogin.Services
+namespace InternIntelligence_UserLogin.Infrastructure.Services
 {
     public class TokenService(IOptions<TokenSettings> options, UserManager<ApplicationUser> userManager) : ITokenService
     {

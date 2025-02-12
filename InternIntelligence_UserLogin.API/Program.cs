@@ -1,7 +1,7 @@
 
 using InternIntelligence_UserLogin.Endpoints;
 
-namespace InternIntelligence_UserLogin
+namespace InternIntelligence_UserLogin.API
 {
     public class Program
     {

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using InternIntelligence_UserLogin.Core.Data.Entities;
 
-namespace InternIntelligence_UserLogin.Context
+namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context
 {
     public class CustomSaveChangesInterceptor : SaveChangesInterceptor
     {
