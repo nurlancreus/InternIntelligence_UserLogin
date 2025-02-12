@@ -31,7 +31,7 @@ namespace InternIntelligence_UserLogin.API
             builder.Services.AddOpenApi();
 
             #region Register Identity
-            builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
+            builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
                     .AddEntityFrameworkStores<AppDbContext>()
                     .AddDefaultTokenProviders();
 

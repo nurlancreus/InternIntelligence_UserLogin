@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context
 {
-    // add-migration init -OutputDir .Persistence/Context/Migrations
+    // add-migration init -OutputDir Persistence/Context/Migrations
     public class AppDbContext(DbContextOptions<AppDbContext> dbContextOptions) : IdentityDbContext<
         ApplicationUser, ApplicationRole, Guid,
         ApplicationUserClaim, ApplicationUserRole, ApplicationUserLogin,

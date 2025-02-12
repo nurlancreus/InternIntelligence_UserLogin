@@ -4,6 +4,6 @@ namespace InternIntelligence_UserLogin.Core.Entities.Join
 {
     public class ApplicationRoleClaim : IdentityRoleClaim<Guid>
     {
-        public virtual ApplicationRole Role { get; set; } = null!;
+        public ApplicationRole Role { get; set; } = null!;
     }
 }
