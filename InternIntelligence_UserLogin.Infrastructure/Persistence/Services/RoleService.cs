@@ -3,7 +3,6 @@ using InternIntelligence_UserLogin.Core.Abstractions.Session;
 using InternIntelligence_UserLogin.Core.DTOs.Role;
 using InternIntelligence_UserLogin.Core.DTOs.User;
 using InternIntelligence_UserLogin.Core.Entities;
-using InternIntelligence_UserLogin.Core.Entities.Join;
 using InternIntelligence_UserLogin.Core.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

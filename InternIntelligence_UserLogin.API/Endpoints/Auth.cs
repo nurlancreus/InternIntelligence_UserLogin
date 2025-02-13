@@ -9,11 +9,13 @@ namespace InternIntelligence_UserLogin.API.Endpoints
     {
         public static IEndpointRouteBuilder RegisterAuthEndpoints(this IEndpointRouteBuilder routes)
         {
-            var auth = routes.MapGroup("api/auth");
+            var auth = routes.MapGroup("api/auth").AllowAnonymous();
 
             auth.MapPost("register", async (IAuthService authService, [FromBody] RegisterDTO registerDto) =>
             {
-                await authService.RegisterAsync(registerDto);
+                var userId = await authService.RegisterAsync(registerDto);
+
+                return Results.Ok(userId);
             }).Validate<RegisterDTO>();
 
             auth.MapPost("login", async (IAuthService authService, [FromBody] LoginDTO loginDto) =>
@@ -28,7 +30,7 @@ namespace InternIntelligence_UserLogin.API.Endpoints
                 var tokenDto = await authService.RefreshLoginAsync(refreshLoginDTO);
 
                 return Results.Ok(tokenDto);
-            }).Validate<LoginDTO>();
+            }).Validate<RefreshLoginDTO>();
 
             auth.MapPatch("confirm-email", async (IAuthService authService, [FromQuery] Guid userId, [FromQuery] string token) =>
             {
@@ -37,24 +39,10 @@ namespace InternIntelligence_UserLogin.API.Endpoints
                 return Results.Ok();
             });
 
-            auth.MapGet("{id}/reset-password", async (Guid id, IAuthService authService) =>
-            {
-                await authService.RequestPasswordResetAsync(id);
-
-                return Results.Ok();
-            });
-
-            auth.MapPatch("reset-password", async (IAuthService authService, [FromQuery] Guid userId, [FromQuery] string token, [FromBody] string newPassword) =>
-            {
-                await authService.ResetPasswordAsync(userId, token, newPassword);
-
-                return Results.Ok();
-            });
-
             auth.MapPost("logout", async (IAuthService authService) =>
             {
 
-            });
+            }).RequireAuthorization();
 
             return routes;
         }

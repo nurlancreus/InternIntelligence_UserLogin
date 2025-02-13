@@ -18,7 +18,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
         {
             var recipientDetails = GenerateRecipient(userName, email);
 
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(confirmationToken));
+            var encodedToken = confirmationToken.UrlEncode();
 
             var confirmationLink = $"{_emailSettings.AccountConfirmationBaseUrl}?userId={userId}&token={encodedToken}";
 
@@ -31,7 +31,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
         {
             var recipientDetails = GenerateRecipient(userName, email);
 
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(resetToken));
+            var encodedToken = resetToken.UrlEncode();
 
             var resetLink = $"{_emailSettings.ResetPasswordBaseUrl}?userId={userId}&token={encodedToken}";
 

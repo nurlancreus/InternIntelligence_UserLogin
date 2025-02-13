@@ -37,7 +37,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Services.Mail
                     <body style='font-family: Arial, sans-serif;'>
                         <h2>Hi {userName},</h2>
                         <p>Thank you for signing up! Please confirm your email by clicking the button below:</p>
-                        <p><a href='{confirmationLink}' style='padding: 10px; background: #28a745; color: white; text-decoration: none; border-radius: 5px;'>Confirm Email</a></p>
+                        <p><a href='{confirmationLink}' style='padding: 10px; margin-y: 16px; background: #28a745; color: white; text-decoration: none; border-radius: 5px;'>Confirm Email</a></p>
                         <p>Best Regards,<br><strong>Intern Intelligence Team</strong></p>
                     </body>
                 </html>";

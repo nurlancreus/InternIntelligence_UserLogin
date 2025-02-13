@@ -1,23 +1,26 @@
 ﻿using InternIntelligence_UserLogin.Core.Abstractions.Services;
+using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
 using InternIntelligence_UserLogin.Core.Abstractions.Session;
 using InternIntelligence_UserLogin.Core.DTOs.Role;
 using InternIntelligence_UserLogin.Core.DTOs.User;
 using InternIntelligence_UserLogin.Core.Entities;
-using InternIntelligence_UserLogin.Core.Entities.Join;
 using InternIntelligence_UserLogin.Core.Exceptions;
 using InternIntelligence_UserLogin.Core.Options.Token;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using System.Text;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 {
-    public class UserService(IOptions<TokenSettings> options, UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager, IJwtSession jwtSession) : IUserService
+    public class UserService(IOptions<TokenSettings> options, UserManager<ApplicationUser> userManager, RoleManager<ApplicationRole> roleManager, IJwtSession jwtSession, IUserEmailService userEmailService) : IUserService
     {
         private readonly RefreshSettings _refreshSettings = options.Value.Refresh;
         private readonly UserManager<ApplicationUser> _userManager = userManager;
         private readonly RoleManager<ApplicationRole> _roleManager = roleManager;
         private readonly IJwtSession _jwtSession = jwtSession;
+        private readonly IUserEmailService _userEmailService = userEmailService;
 
         public async Task AssignRolesToUserAsync(Guid userId, IEnumerable<Guid> roleIds, CancellationToken cancellationToken = default)
         {
@@ -101,6 +104,36 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             if (!result.Succeeded)
             {
                 throw new UpdateNotSucceededException($"User update failed: {Helpers.GetIdentityResultError(result)}");
+            }
+        }
+
+        public async Task RequestPasswordResetAsync(Guid userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user is null) throw new NotFoundException("User not found.");
+
+            _jwtSession.IsUserAuthorized(user.Id, true);
+
+            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            await _userEmailService.SendResetPasswordEmailAsync(userId, user.UserName!, user.Email!, resetToken);
+        }
+
+        public async Task ResetPasswordAsync(Guid userId, string token, string newPassword)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user is null) throw new NotFoundException("User not found.");
+
+            _jwtSession.IsUserAuthorized(user.Id, true);
+
+            var decodedToken = token.UrlDecode();
+
+            var result = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
+            if (!result.Succeeded)
+            {
+                throw new PasswordResetException($"Password reset failed: {Helpers.GetIdentityResultError(result)}");
             }
         }
     }

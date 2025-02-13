@@ -11,5 +11,7 @@ namespace InternIntelligence_UserLogin.Core.Abstractions.Services
         Task UpdateRefreshTokenAsync(ApplicationUser user, string refreshToken, DateTime accessTokenEndDate);
         Task<IEnumerable<RoleDTO>> GetUserRoles(Guid id, CancellationToken cancellationToken = default);
         Task AssignRolesToUserAsync(Guid userId, IEnumerable<Guid> roleIds, CancellationToken cancellationToken = default);
+        Task RequestPasswordResetAsync(Guid userId);
+        Task ResetPasswordAsync(Guid userId, string token, string newPassword);
     }
 }

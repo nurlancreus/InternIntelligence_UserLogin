@@ -14,6 +14,8 @@ using InternIntelligence_UserLogin.Core.Abstractions.Session;
 using InternIntelligence_UserLogin.Infrastructure.Services.Session;
 using InternIntelligence_UserLogin.Core.Abstractions.Services;
 using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 namespace InternIntelligence_UserLogin.API
 {
@@ -21,6 +23,16 @@ namespace InternIntelligence_UserLogin.API
     {
         public static void RegisterServices(this WebApplicationBuilder builder)
         {
+            #region Configure Environments
+            // Load configurations based on environment
+            builder.Configuration
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                .AddEnvironmentVariables()
+                .AddUserSecrets<Program>(); // Load User Secrets in ALL environments
+
+            #endregion
             // Add services to the container.
             builder.Services.AddAuthorization();
 
@@ -29,6 +41,36 @@ namespace InternIntelligence_UserLogin.API
 
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
+
+            #region Register CORS
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowInternIntelligence", builder =>
+                {
+                    //builder.WithOrigins("http://localhost:3000/") // Add allowed origins
+                    //       .AllowAnyHeader()
+                    //       .AllowAnyMethod()
+                    //       .AllowCredentials(); // Allow cookies, authorization headers, etc.
+
+                    builder.AllowAnyOrigin();
+                });
+            });
+            #endregion
+
+            #region Register Rate Limiter
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+                options.AddFixedWindowLimiter(policyName: "fixed", limiterOptions =>
+             {
+                 limiterOptions.PermitLimit = 100;
+                 limiterOptions.Window = TimeSpan.FromMinutes(1);
+                 limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                 limiterOptions.QueueLimit = 5;
+             });
+            });
+
+            #endregion
 
             #region Register Identity
             builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
@@ -94,22 +136,26 @@ namespace InternIntelligence_UserLogin.API
             // Add DbContext Interceptors 
             builder.Services.AddScoped<CustomSaveChangesInterceptor>();
 
-            builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+            if (!builder.Environment.IsEnvironment("Testing"))
             {
-                options.UseSqlServer(builder.Configuration.GetConnectionString("Default"), sqlOptions => sqlOptions
-                .MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
-                .EnableSensitiveDataLogging();
+                builder.Services.AddDbContext<AppDbContext>((sp, options) =>
+                {
+                    options.UseSqlServer(builder.Configuration.GetConnectionString("Default"), sqlOptions => sqlOptions
+                    .MigrationsAssembly(typeof(AppDbContext).Assembly.FullName))
+                    .EnableSensitiveDataLogging();
 
-                options.AddInterceptors(sp.GetRequiredService<CustomSaveChangesInterceptor>());
-            });
+                    options.AddInterceptors(sp.GetRequiredService<CustomSaveChangesInterceptor>());
+                });
+            }
+
             #endregion
 
             #region Exception Handling
-            // Add Exception Handler
-            builder.Services.AddExceptionHandler<CustomExceptionHandler>();
-
             // Add ProblemDetails services
             builder.Services.AddProblemDetails();
+
+            // Add Exception Handler
+            builder.Services.AddExceptionHandler<CustomExceptionHandler>();
             #endregion
 
             #region Register DI Services
@@ -134,11 +180,14 @@ namespace InternIntelligence_UserLogin.API
 
         public static void AddMiddlewares(this WebApplication app)
         {
-            app.UseExceptionHandler();
+            // Use Cors
+            app.UseCors("AllowInternIntelligence");
 
-            app.UseStatusCodePages(async statusCodeCntx
-                    => await TypedResults.Problem(statusCode: statusCodeCntx.HttpContext.Response.StatusCode)
-                 .ExecuteAsync(statusCodeCntx.HttpContext));
+            //Use rate limiter
+            app.UseRateLimiter();
+
+            app.UseStatusCodePages();
+            app.UseExceptionHandler();
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())

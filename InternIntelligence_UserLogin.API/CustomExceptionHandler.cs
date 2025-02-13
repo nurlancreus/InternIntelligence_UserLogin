@@ -1,6 +1,7 @@
-﻿using Microsoft.AspNetCore.Diagnostics;
+﻿using InternIntelligence_UserLogin.Core.Exceptions;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
+using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
 
 namespace InternIntelligence_UserLogin.API
 {
@@ -23,33 +24,41 @@ namespace InternIntelligence_UserLogin.API
 
         private static ProblemDetails GenerateProblemDetails(Exception exception, HttpContext httpContext)
         {
-            var statusCode = exception switch
-            {
-                ArgumentException => StatusCodes.Status400BadRequest,
-                ValidationException => StatusCodes.Status400BadRequest,
-                UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
-                KeyNotFoundException => StatusCodes.Status404NotFound,
-                NotImplementedException => StatusCodes.Status501NotImplemented,
-                _ => StatusCodes.Status500InternalServerError
-            };
+            int statusCode;
 
             var problemDetails = new ProblemDetails
             {
-                Status = statusCode,
-                Title = GetTitleForStatusCode(statusCode),
                 Type = exception.GetType().Name,
                 Detail = exception.Message,
                 Instance = $"{httpContext.Request.Method} {httpContext.Request.Path}"
             };
 
-            // Add extra details for ValidationException
+            if (exception is AppException appException)
+            {
+                statusCode = (int)appException.StatusCode;
+                problemDetails.Extensions["description"] = appException.Description;
+            }
+            else
+            {
+                statusCode = exception switch
+                {
+                    ValidationException => StatusCodes.Status400BadRequest,
+                    UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+                    KeyNotFoundException => StatusCodes.Status404NotFound,
+                    NotImplementedException => StatusCodes.Status501NotImplemented,
+                    _ => StatusCodes.Status500InternalServerError
+                };
+            }
+
+            problemDetails.Status = statusCode;
+            problemDetails.Title = exception is AppException appEx ? appEx.Title : GetTitleForStatusCode(statusCode);
+
             if (exception is ValidationException validationException)
             {
                 problemDetails.Extensions["errors"] = validationException.Data;
             }
 
-            // Include stack trace in Development environment
-            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development")
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" || Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing")
             {
                 problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             }

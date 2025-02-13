@@ -37,6 +37,20 @@ namespace InternIntelligence_UserLogin.API.Endpoints
                 return Results.Ok();
             });
 
+            user.MapGet("{id}/reset-password", async (Guid id, IUserService userService) =>
+            {
+                await userService.RequestPasswordResetAsync(id);
+
+                return Results.Ok();
+            });
+
+            user.MapPatch("reset-password", async (IUserService userService, [FromQuery] Guid userId, [FromQuery] string token, [FromBody] string newPassword) =>
+            {
+                await userService.ResetPasswordAsync(userId, token, newPassword);
+
+                return Results.Ok();
+            });
+
             return routes;
         }
     }

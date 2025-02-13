@@ -1,5 +1,4 @@
 ﻿using InternIntelligence_UserLogin.Core.Abstractions.Base;
-using InternIntelligence_UserLogin.Core.Entities.Join;
 using Microsoft.AspNetCore.Identity;
 
 namespace InternIntelligence_UserLogin.Core.Entities
@@ -13,10 +12,7 @@ namespace InternIntelligence_UserLogin.Core.Entities
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
-        public ICollection<ApplicationUserClaim> Claims { get; set; } = [];
-        public ICollection<ApplicationUserLogin> Logins { get; set; } = [];
-        public ICollection<ApplicationUserToken> Tokens { get; set; } = [];
-        public ICollection<ApplicationUserRole> UserRoles { get; set; } = [];
+        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; } = [];
 
         private ApplicationUser() { }
         private ApplicationUser(string firstName, string lastName, string userName, string email)

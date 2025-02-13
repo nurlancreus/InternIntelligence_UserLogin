@@ -14,14 +14,13 @@ using System.Text;
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 {
     public class AuthService(UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, IUserService userService,
-        ITokenService tokenService, IUserEmailService userEmailService, IJwtSession jwtSession) : IAuthService
+        ITokenService tokenService, IUserEmailService userEmailService) : IAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager = userManager;
         private readonly SignInManager<ApplicationUser> _signInManager = signInManager;
         private readonly IUserService _userService = userService;
         private readonly ITokenService _tokenService = tokenService;
         private readonly IUserEmailService _userEmailService = userEmailService;
-        private readonly IJwtSession _jwtSession = jwtSession;
 
         public async Task<TokenDTO> LoginAsync(LoginDTO loginDTO)
         {
@@ -46,7 +45,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             return tokenData;
         }
 
-        public async Task RegisterAsync(RegisterDTO registerDTO)
+        public async Task<Guid> RegisterAsync(RegisterDTO registerDTO)
         {
             var userWithSameEmail = await _userManager.FindByEmailAsync(registerDTO.Email);
             if (userWithSameEmail is not null)
@@ -67,6 +66,8 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             var emailConfirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
 
             await _userEmailService.SendAccountConfirmationEmailAsync(user.Id, user.UserName!, user.Email!, emailConfirmationToken);
+
+            return user.Id;
         }
 
         public async Task ConfirmEmailAsync(Guid userId, string token)
@@ -74,7 +75,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user is null) throw new RegisterException("User not found.");
 
-            var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
+            var decodedToken = token.UrlDecode();
 
             var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
 
@@ -118,36 +119,6 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
                 AccessTokenEndDate = tokenEndDate,
                 RefreshToken = newRefreshToken,
             };
-        }
-
-        public async Task RequestPasswordResetAsync(Guid userId)
-        {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-
-            if (user is null) throw new NotFoundException("User not found.");
-
-            _jwtSession.IsUserAuthorized(user.Id, true);
-
-            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-
-            await _userEmailService.SendResetPasswordEmailAsync(userId, user.UserName!, user.Email!, resetToken);
-        }
-
-        public async Task ResetPasswordAsync(Guid userId, string token, string newPassword)
-        {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-
-            if (user is null) throw new NotFoundException("User not found.");
-
-            _jwtSession.IsUserAuthorized(user.Id, true);
-
-            var decodedToken = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(token));
-
-            var result = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
-            if (!result.Succeeded)
-            {
-                throw new PasswordResetException($"Password reset failed: {Helpers.GetIdentityResultError(result)}");
-            }
         }
     }
 }
