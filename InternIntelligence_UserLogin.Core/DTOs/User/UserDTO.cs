@@ -12,6 +12,8 @@ namespace InternIntelligence_UserLogin.Core.DTOs.User
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
+        public UserDTO() { }
+
         public UserDTO(ApplicationUser user)
         {
             Id = user.Id;

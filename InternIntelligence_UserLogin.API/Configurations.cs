@@ -16,6 +16,7 @@ using InternIntelligence_UserLogin.Core.Abstractions.Services;
 using InternIntelligence_UserLogin.Core.Abstractions.Services.Mail;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Microsoft.VisualBasic;
 
 namespace InternIntelligence_UserLogin.API
 {
@@ -45,13 +46,8 @@ namespace InternIntelligence_UserLogin.API
             #region Register CORS
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowInternIntelligence", builder =>
+                options.AddPolicy(ApiConstants.CorsPolicies.AllowAllPolicy, builder =>
                 {
-                    //builder.WithOrigins("http://localhost:3000/") // Add allowed origins
-                    //       .AllowAnyHeader()
-                    //       .AllowAnyMethod()
-                    //       .AllowCredentials(); // Allow cookies, authorization headers, etc.
-
                     builder.AllowAnyOrigin();
                 });
             });
@@ -132,6 +128,42 @@ namespace InternIntelligence_UserLogin.API
              });
             #endregion
 
+            #region Add AuthorizationBuilder
+            builder.Services.AddAuthorizationBuilder()
+            .AddPolicy(ApiConstants.AuthPolicies.AdminsPolicy, policy => policy.RequireAuthenticatedUser().RequireRole("Admin", "SuperAdmin"))
+            .AddPolicy(ApiConstants.AuthPolicies.SuperAdminPolicy, policy => policy.RequireAuthenticatedUser().RequireRole("SuperAdmin"))
+            .AddPolicy(ApiConstants.AuthPolicies.UserOrAdminPolicy, policy =>
+              policy.RequireAuthenticatedUser().RequireAssertion(context =>
+             {
+                var userIdClaim = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+                var isAdmin = context.User.IsInRole("Admin") || context.User.IsInRole("SuperAdmin");
+                if (context.Resource is not HttpContext httpContext) return false;
+
+                var routeData = httpContext.GetRouteData();
+                var routeUserId = routeData?.Values["id"]?.ToString();
+
+                routeUserId ??= httpContext.Request.Query["userId"].FirstOrDefault();
+
+                return userIdClaim != null && (routeUserId == userIdClaim || isAdmin);
+              }))
+            .AddPolicy(ApiConstants.AuthPolicies.UserPolicy, policy =>
+              policy.RequireAuthenticatedUser().RequireAssertion(context =>
+              {
+                var userIdClaim = context.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (context.Resource is not HttpContext httpContext) return false;
+
+                var routeData = httpContext.GetRouteData();
+                var routeUserId = routeData?.Values["id"]?.ToString();
+
+                routeUserId ??= httpContext.Request.Query["userId"].FirstOrDefault();
+
+                return userIdClaim != null && routeUserId == userIdClaim;
+              }));
+
+
+            #endregion
+
             #region Register DbContext
             // Add DbContext Interceptors 
             builder.Services.AddScoped<CustomSaveChangesInterceptor>();
@@ -180,24 +212,23 @@ namespace InternIntelligence_UserLogin.API
 
         public static void AddMiddlewares(this WebApplication app)
         {
-            // Use Cors
-            app.UseCors("AllowInternIntelligence");
-
-            //Use rate limiter
-            app.UseRateLimiter();
-
-            app.UseStatusCodePages();
             app.UseExceptionHandler();
 
-            // Configure the HTTP request pipeline.
+            app.UseStatusCodePages();
+
+            app.UseCors(ApiConstants.CorsPolicies.AllowAllPolicy);
+
+            app.UseRateLimiter();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            app.UseHttpsRedirection();
+
             if (app.Environment.IsDevelopment())
             {
                 app.MapOpenApi();
             }
-
-            app.UseHttpsRedirection();
-
-            app.UseAuthorization();
         }
     }
 }

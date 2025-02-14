@@ -27,33 +27,35 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             _jwtSession.IsUserSuperAdmin(true);
 
             var user = await _userManager.Users
-                .Include(u => u.UserRoles)
-                    .ThenInclude(ur => ur.Role)
                 .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
 
-            if (user is null) throw new NotFoundException("User not found.");
+            if (user is null) throw new NotFoundException("User is not found.");
 
-            var existingRoleIds = user.UserRoles.Select(ur => ur.Role.Id).ToHashSet();
+            var roles = await _roleManager.Roles
+                .Where(r => roleIds.Contains(r.Id))
+                .Select(r => r.Name!)
+                .ToListAsync(cancellationToken);
 
-            var rolesToAdd = _roleManager.Roles.Where(r => roleIds.Contains(r.Id) && !existingRoleIds.Contains(r.Id));
+            if (roles.Count == 0) throw new NotFoundException("No roles have found.");
 
-            var rolesToRemove = user.UserRoles.Where(ur => !roleIds.Contains(ur.Role.Id)).ToList();
-
-            foreach (var role in rolesToAdd)
-            {
-                user.UserRoles.Add(new ApplicationUserRole { UserId = user.Id, RoleId = role.Id });
-            }
-
-            foreach (var userRole in rolesToRemove)
-            {
-                user.UserRoles.Remove(userRole);
-            }
-
-            var result = await _userManager.UpdateAsync(user);
+            var result = await _userManager.AddToRolesAsync(user, roles);
 
             if (!result.Succeeded)
             {
                 throw new UpdateNotSucceededException($"User update failed: {Helpers.GetIdentityResultError(result)}");
+            }
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            var rolesToRemove = currentRoles.Except(roles).ToList();
+
+            if (rolesToRemove.Count != 0)
+            {
+                var removeResult = await _userManager.RemoveFromRolesAsync(user, rolesToRemove);
+
+                if (!removeResult.Succeeded)
+                {
+                    throw new UpdateNotSucceededException($"User role removal failed: {Helpers.GetIdentityResultError(removeResult)}");
+                }
             }
         }
 
@@ -81,15 +83,24 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
         {
             _jwtSession.IsUserAdmin(true);
 
-            var user = await _userManager.Users
-                                .Include(u => u.UserRoles)
-                                    .ThenInclude(ur => ur.Role)
-                                .AsNoTracking()
-                                .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+            var user = await _userManager.FindByIdAsync(id.ToString());
 
             if (user is null) throw new NotFoundException("User is not found.");
 
-            return user.UserRoles.Select(ur => new RoleDTO(ur.Role));
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var roleDTOs = new List<RoleDTO>();
+
+            foreach (var roleName in roles)
+            {
+                var role = await _roleManager.FindByNameAsync(roleName);
+                if (role != null)
+                {
+                    roleDTOs.Add(new RoleDTO(role));
+                }
+            }
+
+            return roleDTOs;
         }
 
         public async Task UpdateRefreshTokenAsync(ApplicationUser user, string refreshToken, DateTime accessTokenEndDate)

@@ -6,48 +6,55 @@ using InternIntelligence_UserLogin.Core.Entities;
 using InternIntelligence_UserLogin.Core.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using System.Data;
+using System.Linq;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 {
-    public class RoleService(RoleManager<ApplicationRole> roleManager, UserManager<ApplicationUser> userManager, IJwtSession jwtSession) : IRoleService
+    public class RoleService : IRoleService
     {
-        private readonly RoleManager<ApplicationRole> _roleManager = roleManager;
-        private readonly UserManager<ApplicationUser> _userManager = userManager;
-        private readonly IJwtSession _jwtSession = jwtSession;
+        private readonly RoleManager<ApplicationRole> _roleManager;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IJwtSession _jwtSession;
+
+        public RoleService(RoleManager<ApplicationRole> roleManager, UserManager<ApplicationUser> userManager, IJwtSession jwtSession)
+        {
+            _roleManager = roleManager;
+            _userManager = userManager;
+            _jwtSession = jwtSession;
+        }
 
         public async Task AssignUsersToRoleAsync(Guid roleId, IEnumerable<string> userNames, CancellationToken cancellationToken = default)
         {
             _jwtSession.IsUserSuperAdmin(true);
 
-            var role = await _roleManager.Roles
-                                .Include(r => r.UserRoles)
-                                    .ThenInclude(ur => ur.User)
-                                .FirstOrDefaultAsync(r => r.Id == roleId, cancellationToken);
+            var role = await _roleManager.FindByIdAsync(roleId.ToString());
 
             if (role is null) throw new NotFoundException("Role is not found.");
 
-            var existingUserNames = role.UserRoles.Select(ur => ur.User.UserName).ToHashSet();
-
-            var usersToAdd = _userManager.Users.Where(u => userNames.Contains(u.UserName) && !existingUserNames.Contains(u.UserName));
-
-            var usersToRemove = role.UserRoles.Where(ur => !userNames.Contains(ur.User.UserName)).ToList();
-
-            foreach (var user in usersToAdd)
+            foreach (var userName in userNames)
             {
-                role.UserRoles.Add(new ApplicationUserRole { UserId = user.Id, RoleId = role.Id });
+                var user = await _userManager.FindByNameAsync(userName);
+                if (user is not null && !await _userManager.IsInRoleAsync(user, role.Name!))
+                {
+                    var result = await _userManager.AddToRoleAsync(user, role.Name!);
+                    if (!result.Succeeded)
+                    {
+                        throw new UpdateNotSucceededException($"Failed to add user {userName} to role {role.Name}");
+                    }
+                }
             }
 
-            foreach (var userRole in usersToRemove)
+            var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
+            foreach (var user in usersInRole)
             {
-                role.UserRoles.Remove(userRole);
-            }
-
-            var result = await _roleManager.UpdateAsync(role);
-
-            if (!result.Succeeded)
-            {
-                throw new UpdateNotSucceededException($"Role update failed: {Helpers.GetIdentityResultError(result)}");
+                if (!userNames.Contains(user.UserName))
+                {
+                    var result = await _userManager.RemoveFromRoleAsync(user, role.Name!);
+                    if (!result.Succeeded)
+                    {
+                        throw new UpdateNotSucceededException($"Failed to remove user {user.UserName} from role {role.Name}");
+                    }
+                }
             }
         }
 
@@ -56,11 +63,9 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             _jwtSession.IsUserSuperAdmin(true);
 
             var existingRole = await _roleManager.FindByNameAsync(createRoleDTO.Name);
-
-            if (existingRole is not null) throw new ValidationException($"Role with the name '{existingRole.Name}' is already exists.");
+            if (existingRole != null) throw new ValidationException($"Role with the name '{existingRole.Name}' already exists.");
 
             var role = ApplicationRole.Create(createRoleDTO.Name);
-
             var result = await _roleManager.CreateAsync(role);
 
             if (!result.Succeeded)
@@ -76,8 +81,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             _jwtSession.IsUserSuperAdmin(true);
 
             var role = await _roleManager.FindByIdAsync(roleId.ToString());
-
-            if (role is null) throw new NotFoundException("Role is not found.");
+            if (role == null) throw new NotFoundException("Role is not found.");
 
             var result = await _roleManager.DeleteAsync(role);
 
@@ -92,7 +96,6 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             _jwtSession.IsUserAdmin(true);
 
             var roles = await _roleManager.Roles.Select(r => new RoleDTO(r)).ToListAsync(cancellationToken);
-
             return roles;
         }
 
@@ -101,7 +104,6 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             _jwtSession.IsUserAdmin(true);
 
             var role = await _roleManager.FindByIdAsync(roleId.ToString());
-
             if (role is null) throw new NotFoundException("Role is not found.");
 
             return new RoleDTO(role);
@@ -111,14 +113,11 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
         {
             _jwtSession.IsUserSuperAdmin(true);
 
-            var role = await _roleManager.Roles
-                                .Include(r => r.UserRoles)
-                                    .ThenInclude(ur => ur.User)
-                                .FirstOrDefaultAsync(r => r.Id == roleId, cancellationToken);
-
+            var role = await _roleManager.FindByIdAsync(roleId.ToString());
             if (role is null) throw new NotFoundException("Role is not found.");
 
-            return role.UserRoles.Select(ur => new UserDTO(ur.User));
+            var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
+            return usersInRole.Select(user => new UserDTO(user));
         }
 
         public async Task<Guid> UpdateAsync(Guid roleId, UpdateRoleDTO updateRoleDTO, CancellationToken cancellationToken = default)
@@ -126,14 +125,12 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             _jwtSession.IsUserSuperAdmin(true);
 
             var role = await _roleManager.FindByIdAsync(roleId.ToString());
-
             if (role is null) throw new NotFoundException("Role is not found.");
 
             if (!string.IsNullOrEmpty(updateRoleDTO.Name) && updateRoleDTO.Name != role.Name)
             {
                 var existingRole = await _roleManager.FindByNameAsync(updateRoleDTO.Name);
-
-                if (existingRole is not null) throw new ValidationException($"Role with the name '{existingRole.Name}' is already exists.");
+                if (existingRole != null) throw new ValidationException($"Role with the name '{existingRole.Name}' already exists.");
 
                 role.Name = updateRoleDTO.Name;
             }

@@ -8,11 +8,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Configurations
     {
         public void Configure(EntityTypeBuilder<ApplicationUser> builder)
         {
-            // Each User can have many entries in the UserRole join table
-            builder.HasMany(e => e.UserRoles)
-                .WithOne(ur => ur.User)
-                .HasForeignKey(ur => ur.UserId)
-                .IsRequired();
+            
         }
     }
 }

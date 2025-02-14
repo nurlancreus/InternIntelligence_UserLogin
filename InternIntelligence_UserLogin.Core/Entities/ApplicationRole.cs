@@ -7,7 +7,6 @@ namespace InternIntelligence_UserLogin.Core.Entities
     {
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public virtual ICollection<ApplicationUserRole> UserRoles { get; set; } = [];
 
         private ApplicationRole() { }
         private ApplicationRole(string name)
