@@ -5,17 +5,14 @@ using InternIntelligence_UserLogin.API;
 using FluentAssertions;
 using InternIntelligence_UserLogin.Tests.Common.Factories;
 using InternIntelligence_UserLogin.Core.DTOs.Token;
-using Newtonsoft.Json.Linq;
 using InternIntelligence_UserLogin.Core.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
 using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
-using Microsoft.AspNetCore.WebUtilities;
-using System.Text;
 using InternIntelligence_UserLogin.Infrastructure;
 
-namespace InternIntelligence_UserLogin.Tests.Integration
+namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 {
     public class AuthEndpointsTests : IClassFixture<TestingWebAppFactory<Program>>
     {
@@ -33,7 +30,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration
         }
 
         [Fact]
-        public async Task Register_WhenValidRequest_ShouldReturnSuccessStatusCodeAndUserId()
+        public async Task Register_WhenWithValidRequest_ShouldReturnSuccessStatusCodeAndUserId()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
@@ -49,11 +46,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             userId.Should().NotBeEmpty();
 
             //Cleanup
-            await CleanupDataAsync();
+            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
-        public async Task Register_WhenInValidRequest_ShouldReturnFailureStatusCode()
+        public async Task Register_WhenWithInValidRequest_ShouldReturnFailureStatusCode()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateInValidRegisterRequest();
@@ -66,7 +63,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration
         }
 
         [Fact]
-        public async Task Register_WhenConfirmPasswordInValidRequest_ShouldReturnFailureStatusCode()
+        public async Task Register_WhenWithConfirmPasswordInValidRequest_ShouldReturnFailureStatusCode()
         {
             // Arrange
             var registerDto = Factory.Auth.GeneratePasswordsInValidRegisterRequest();
@@ -78,11 +75,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
             //Cleanup
-            await CleanupDataAsync();
+            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
-        public async Task Login_WhenValidCredentials_ShouldReturnToken()
+        public async Task Login_WhenWithValidCredentials_ShouldReturnToken()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
@@ -91,7 +88,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             registerResponse.EnsureSuccessStatusCode();
 
             // Manually confirm email
-            _factory.ManuallyConfirmEmail(registerDto.Email);
+            await _factory.ManuallyConfirmEmailAsync(registerDto.Email);
 
             var loginDto = Factory.Auth.GenerateValidLoginRequest();
 
@@ -106,11 +103,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             token.AccessToken.Should().NotBeNullOrEmpty();
 
             //Cleanup
-            await CleanupDataAsync();
+            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
-        public async Task Login_WhenInvalidCredentials_ShouldReturnBadRequest()
+        public async Task Login_WhenWithInvalidCredentials_ShouldReturnBadRequest()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
@@ -119,7 +116,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             registerResponse.EnsureSuccessStatusCode();
 
             // Manually confirm email
-            _factory.ManuallyConfirmEmail(registerDto.Email);
+            await _factory.ManuallyConfirmEmailAsync(registerDto.Email);
             var loginDto = Factory.Auth.GenerateInValidLoginRequest();
 
             // Act
@@ -129,12 +126,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
 
             //Cleanup
-            await CleanupDataAsync();
+            await _context.CleanupUsersDataAsync();
         }
 
-        // ✅ Refresh Login Tests
         [Fact]
-        public async Task RefreshLogin_WhenValidRequest_ShouldReturnNewToken()
+        public async Task RefreshLogin_WhenWithValidRequest_ShouldReturnNewToken()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
@@ -143,7 +139,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             registerResponse.EnsureSuccessStatusCode();
 
             // Manually confirm email
-            _factory.ManuallyConfirmEmail(registerDto.Email);
+            await _factory.ManuallyConfirmEmailAsync(registerDto.Email);
 
             var loginDto = Factory.Auth.GenerateValidLoginRequest();
 
@@ -171,11 +167,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             newToken.AccessToken.Should().NotBeNullOrEmpty();
 
             //Cleanup
-            await CleanupDataAsync();
+            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
-        public async Task RefreshLogin_WhenInvalidToken_ShouldNotReturnOk()
+        public async Task RefreshLogin_WhenWithInvalidToken_ShouldNotReturnOk()
         {
             // Arrange
             var refreshDto = new RefreshLoginDTO
@@ -191,9 +187,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             response.StatusCode.Should().NotBe(HttpStatusCode.OK);
         }
 
-        // ✅ Confirm Email Tests
         [Fact]
-        public async Task ConfirmEmail_WhenValidRequest_ShouldReturnSuccess()
+        public async Task ConfirmEmail_WhenWithValidRequest_ShouldReturnSuccess()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
@@ -222,11 +217,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             response.StatusCode.Should().Be(HttpStatusCode.OK);
 
             //Cleanup
-            await CleanupDataAsync();
         }
 
         [Fact]
-        public async Task ConfirmEmail_WhenInvalidToken_ShouldReturnBadRequest()
+        public async Task ConfirmEmail_WhenWithInvalidToken_ShouldReturnBadRequest()
         {
             // Arrange
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
@@ -242,19 +236,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-            //Cleanup
-            await CleanupDataAsync();
-        }
-
-
-        private async Task CleanupDataAsync()
-        {
-            var users = _context.Users.ToList();
-            _context.Users.RemoveRange(users);
-
-            // concurrency error after updating email
-            await _context.SaveChangesAsync();
         }
     }
 }
