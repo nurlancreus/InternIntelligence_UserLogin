@@ -1,6 +1,7 @@
 ﻿using InternIntelligence_UserLogin.Core.Exceptions;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Mime;
 using ValidationException = System.ComponentModel.DataAnnotations.ValidationException;
 
 namespace InternIntelligence_UserLogin.API
@@ -14,12 +15,17 @@ namespace InternIntelligence_UserLogin.API
         {
             var problemDetails = GenerateProblemDetails(exception, httpContext);
 
-            return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
+            httpContext.Response.ContentType = MediaTypeNames.Application.Json;
+            httpContext.Response.StatusCode = problemDetails.Status ?? StatusCodes.Status500InternalServerError;
+
+            await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
             {
                 Exception = exception,
                 HttpContext = httpContext,
                 ProblemDetails = problemDetails
             });
+
+            return true;
         }
 
         private static ProblemDetails GenerateProblemDetails(Exception exception, HttpContext httpContext)
@@ -58,7 +64,7 @@ namespace InternIntelligence_UserLogin.API
                 problemDetails.Extensions["errors"] = validationException.Data;
             }
 
-            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" || Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Testing")
+            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") != "Production")
             {
                 problemDetails.Extensions["stackTrace"] = exception.StackTrace;
             }
