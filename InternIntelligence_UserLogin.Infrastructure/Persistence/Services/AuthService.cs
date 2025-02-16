@@ -26,7 +26,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
         {
             var user = await _userManager.FindByEmailAsync(loginDTO.Email) ?? throw new LoginException();
 
-            if (!user.EmailConfirmed) throw new LoginException("Email is not confirmed. Please verify your email.");
+            // if (!user.EmailConfirmed) throw new LoginException("Email is not confirmed. Please verify your email.");
 
             var result = await _signInManager.PasswordSignInAsync(user, loginDTO.Password, false, false);
 
