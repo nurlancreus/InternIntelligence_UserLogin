@@ -1,40 +1,51 @@
-﻿using InternIntelligence_UserLogin.API;
-using InternIntelligence_UserLogin.Core.DTOs.Role;
-using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
+﻿using InternIntelligence_UserLogin.Core.DTOs.Role;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net.Http.Json;
 using System.Net;
 using FluentAssertions;
 using System.Net.Http.Headers;
 using InternIntelligence_UserLogin.Core.DTOs.User;
-using InternIntelligence_UserLogin.API.Endpoints;
 using InternIntelligence_UserLogin.Core.Entities;
 using Microsoft.AspNetCore.Identity;
+using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
 
 namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 {
-    public class RoleEndpointsTests : IClassFixture<TestingWebAppFactory<Program>>
+    [Collection("Sequential")]
+    public class RoleEndpointsTests : IClassFixture<TestingWebAppFactory>, IAsyncLifetime
     {
-        private readonly TestingWebAppFactory<Program> _factory;
+        private readonly TestingWebAppFactory _factory;
         private readonly HttpClient _client;
+        private readonly IServiceScope _scope;
         private readonly AppDbContext _context;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly string _superAdminToken;
 
-        public RoleEndpointsTests(TestingWebAppFactory<Program> factory)
+        public RoleEndpointsTests(TestingWebAppFactory factory)
         {
             _factory = factory;
-            _client = factory.CreateClient();
-            _context = factory.Services.CreateScope().ServiceProvider.GetRequiredService<AppDbContext>();
-            _userManager = factory.Services.CreateScope().ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            _client = _factory.CreateClient();
+            _scope = _factory.Services.CreateScope();
+            _context = _scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        }
 
-            _superAdminToken = Task.Run(async () => await _client.GetSuperAdminTokenAsync(_factory)).GetAwaiter().GetResult();
+        public async Task InitializeAsync()
+        {
+            await _context.Database.EnsureDeletedAsync();
+            await _context.Database.EnsureCreatedAsync();
+        }
+
+        public async Task DisposeAsync()
+        {
+            await _context.Database.EnsureDeletedAsync();
+            _scope.Dispose();
+            _client.Dispose();
         }
 
         [Fact]
         public async Task GetAllRoles_WhenWithSuperAdminToken_ShouldReturnAllRoles()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             int rolesCount = 2;
             int expectedRolesCount = rolesCount + 1; // extra admin
 
@@ -58,6 +69,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetRoleById_WhenWithSuperAdminToken_ShouldReturnRole()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"api/roles/{roleId}");
@@ -77,6 +90,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetRoleUsers_WhenWithSuperAdminToken_ShouldReturnUsersInRole()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
             var userId = await _client.RegisterSingleUser();
             await _client.AssignRoleToUser(userId, roleId, _superAdminToken);
@@ -98,6 +113,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task CreateRole_WhenWithSuperAdminTokenAndValidRequest_ShouldCreateRoleSuccessfully()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var createRoleDto = new CreateRoleDTO
             {
                 Name = "NewRole"
@@ -122,6 +139,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithSuperAdminTokenAndValidRequest_ShouldUpdateRoleSuccessfully()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
             var updateRoleDto = new UpdateRoleDTO
             {
@@ -147,6 +166,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task DeleteRole_WhenWithSuperAdminToken_ShouldDeleteRoleSuccessfully()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
 
             var request = new HttpRequestMessage(HttpMethod.Delete, $"api/roles/{roleId}");
@@ -167,10 +188,14 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task AssignUsersToRole_WhenWithSuperAdminToken_ShouldAssignUsersSuccessfully()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
             var userId = await _client.RegisterSingleUser();
 
-            var user = await _userManager.FindByIdAsync(userId.ToString());
+            var userManager = _scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user = await userManager.FindByIdAsync(userId.ToString());
 
             var assignUsersDto = new List<string> { user!.UserName! };
 
@@ -232,6 +257,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithoutToken_ShouldReturnUnauthorized()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
             var updateRoleDto = new UpdateRoleDTO { Name = "UpdatedRole" };
 
@@ -251,7 +278,9 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task CreateRole_WhenWithInvalidData_ShouldReturnBadRequest()
         {
             // Arrange
-            var createRoleDto = new CreateRoleDTO { Name = "" }; // Empty name
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
+            var createRoleDto = new CreateRoleDTO { Name = "" };
 
             var request = new HttpRequestMessage(HttpMethod.Post, "api/roles")
             {
@@ -270,6 +299,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithInvalidData_ShouldReturnBadRequest()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var roleId = await _client.CreateRole(_superAdminToken);
             var updateRoleDto = new UpdateRoleDTO { Name = "" }; // Empty name
 
@@ -290,6 +321,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithNonExistentRoleId_ShouldReturnNotFound()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var updateRoleDto = new UpdateRoleDTO { Name = "UpdatedRole" };
             var nonExistentRoleId = Guid.NewGuid();
 

@@ -20,18 +20,29 @@ using InternIntelligence_UserLogin.Tests.Common.Constants;
 using InternIntelligence_UserLogin.Core.DTOs.Role;
 using InternIntelligence_UserLogin.API.Endpoints;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 
 namespace InternIntelligence_UserLogin.Tests.Integration
 {
     public static class Extensions
     {
-        public static async Task<string> GetSuperAdminTokenAsync(this HttpClient client, TestingWebAppFactory<Program> factory)
+        public async static Task<AppDbContext> CreateNewDbContextAsync(this IServiceScope scope)
+        {
+            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            await context.Database.EnsureDeletedAsync();
+            await context.Database.EnsureCreatedAsync();
+
+            return context;
+        }
+
+        public static async Task<string> GetSuperAdminTokenAsync(this HttpClient client, IServiceScope scope)
         {
             var superAdminEmail = Constants.Auth.SuperAdmin_Email;
             var password = Constants.Auth.SuperAdmin_Password;
 
-            var roleManager = factory.Services.CreateScope().ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
-            var userManager = factory.Services.CreateScope().ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             if (!await roleManager.RoleExistsAsync(Constants.Role.SuperAdmin))
             {
@@ -46,22 +57,22 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             var superAdmin = await userManager.FindByEmailAsync(superAdminEmail);
             if (superAdmin == null)
             {
-                var newSuperAdmin = ApplicationUser.Create(Constants.Auth.SuperAdmin_FirstName, Constants.Auth.SuperAdmin_LastName, Constants.Auth.SuperAdmin_UserName, superAdminEmail);
+                superAdmin = ApplicationUser.Create(Constants.Auth.SuperAdmin_FirstName, Constants.Auth.SuperAdmin_LastName, Constants.Auth.SuperAdmin_UserName, superAdminEmail);
 
-                newSuperAdmin.EmailConfirmed = true;
+                superAdmin.EmailConfirmed = true;
 
-                var createUserResult = await userManager.CreateAsync(newSuperAdmin, password);
+                var createUserResult = await userManager.CreateAsync(superAdmin, password);
                 if (!createUserResult.Succeeded)
                 {
                     throw new Exception($"Failed to create Super Admin: {Helpers.GetIdentityResultError(createUserResult)}");
                 }
+            }
 
-                var addRoleResult = await userManager.AddToRoleAsync(newSuperAdmin, Constants.Role.SuperAdmin);
+            var addRoleResult = await userManager.AddToRoleAsync(superAdmin, Constants.Role.SuperAdmin);
 
-                if (!addRoleResult.Succeeded)
-                {
-                    throw new Exception($"Failed to assign 'SuperAdmin' role: {Helpers.GetIdentityResultError(addRoleResult)}");
-                }
+            if (!addRoleResult.Succeeded)
+            {
+                throw new Exception($"Failed to assign 'SuperAdmin' role: {Helpers.GetIdentityResultError(addRoleResult)}");
             }
 
             var loginRequest = new
@@ -77,10 +88,9 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             return tokenResponse!.AccessToken;
         }
 
-        public static async Task<TestingWebAppFactory<Program>> ManuallyConfirmEmailAsync(this TestingWebAppFactory<Program> factory, string email)
+        public static async Task ManuallyConfirmEmailAsync(this IServiceScope scope, string email)
         {
             // Manually confirm email
-            using var scope = factory.Services.CreateScope();
             var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             var user = await userManager.FindByEmailAsync(email);
@@ -90,8 +100,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             user.EmailConfirmed = true;
 
             await userManager.UpdateAsync(user);
-
-            return factory;
         }
 
         public static async Task<ICollection<Guid>> RegisterUsers(this HttpClient client, int usersCount = 4)
@@ -109,10 +117,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration
 
             foreach (var response in responses)
             {
-                var userId = await response.Content.ReadFromJsonAsync<Guid>();
-
                 response.EnsureSuccessStatusCode();
                 response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+                var userId = await response.Content.ReadFromJsonAsync<Guid>();
                 userId.Should().NotBeEmpty();
                 userIds.Add(userId);
             }
@@ -125,10 +133,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
 
             var response = await client.PostAsJsonAsync("api/auth/register", registerDto);
-            var userId = await response.Content.ReadFromJsonAsync<Guid>();
 
             response.EnsureSuccessStatusCode();
             response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var userId = await response.Content.ReadFromJsonAsync<Guid>();
             userId.Should().NotBeEmpty();
 
             return userId;
@@ -154,13 +163,14 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             var roleDto = new CreateRoleDTO { Name = roleName };
             var request = new HttpRequestMessage(HttpMethod.Post, "api/roles")
             {
-                Content = JsonContent.Create(roleDto) 
+                Content = JsonContent.Create(roleDto)
             };
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", superAdminAccessToken);
 
             var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode(); 
+            response.EnsureSuccessStatusCode();
+
             var roleId = await response.Content.ReadFromJsonAsync<Guid>();
             return roleId!;
         }
@@ -179,18 +189,19 @@ namespace InternIntelligence_UserLogin.Tests.Integration
         }
 
 
-        public static async Task<(string accessToken, Guid userId)> RegisterAndLoginSingleUser(this HttpClient client, TestingWebAppFactory<Program> factory)
+        public static async Task<(string accessToken, Guid userId)> RegisterAndLoginSingleUser(this HttpClient client, IServiceScope scope)
         {
             var registerDto = Factory.Auth.GenerateValidRegisterRequest();
 
             var registerResponse = await client.PostAsJsonAsync("api/auth/register", registerDto);
-            var userId = await registerResponse.Content.ReadFromJsonAsync<Guid>();
 
             registerResponse.EnsureSuccessStatusCode();
             registerResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+            var userId = await registerResponse.Content.ReadFromJsonAsync<Guid>();
             userId.Should().NotBeEmpty();
 
-            await factory.ManuallyConfirmEmailAsync(registerDto.Email);
+            // await scope.ManuallyConfirmEmailAsync(registerDto.Email);
 
             var loginDto = Factory.Auth.GenerateValidLoginRequest();
 
@@ -205,15 +216,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration
             token.AccessToken.Should().NotBeNullOrEmpty();
 
             return (token.AccessToken, userId);
-        }
-
-        public static async Task CleanupUsersDataAsync(this AppDbContext context)
-        {
-            var users = context.Users.ToList();
-            context.Users.RemoveRange(users);
-
-            // concurrency error after updating email
-            await context.SaveChangesAsync();
         }
     }
 }

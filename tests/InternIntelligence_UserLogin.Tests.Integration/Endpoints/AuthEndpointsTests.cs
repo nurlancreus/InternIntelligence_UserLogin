@@ -9,24 +9,41 @@ using InternIntelligence_UserLogin.Core.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
-using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
 using InternIntelligence_UserLogin.Infrastructure;
+using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
 
 namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 {
-    public class AuthEndpointsTests : IClassFixture<TestingWebAppFactory<Program>>
+    [Collection("Sequential")]
+    public class AuthEndpointsTests : IClassFixture<TestingWebAppFactory>, IAsyncLifetime
     {
-        private readonly TestingWebAppFactory<Program> _factory;
+        private readonly TestingWebAppFactory _factory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly HttpClient _client;
+        private readonly IServiceScope _scope;
         private readonly AppDbContext _context;
 
-        public AuthEndpointsTests(TestingWebAppFactory<Program> factory)
+        public AuthEndpointsTests(TestingWebAppFactory factory)
         {
             _factory = factory;
-            _client = factory.CreateClient();
+            _client = _factory.CreateClient();
+            _scope = factory.Services.CreateScope();
+            _context = _scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
             _userManager = factory.Services.CreateScope().ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            _context = factory.Services.CreateScope().ServiceProvider.GetRequiredService<AppDbContext>();
+        }
+
+        public async Task InitializeAsync()
+        {
+            await _context.Database.EnsureDeletedAsync();
+            await _context.Database.EnsureCreatedAsync();
+        }
+
+        public async Task DisposeAsync()
+        {
+            await _context.Database.EnsureDeletedAsync();
+            _scope.Dispose();
+            _client.Dispose();
         }
 
         [Fact]
@@ -44,9 +61,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             response.EnsureSuccessStatusCode();
             response.StatusCode.Should().Be(HttpStatusCode.OK);
             userId.Should().NotBeEmpty();
-
-            //Cleanup
-            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
@@ -73,9 +87,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-            //Cleanup
-            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
@@ -88,7 +99,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             registerResponse.EnsureSuccessStatusCode();
 
             // Manually confirm email
-            await _factory.ManuallyConfirmEmailAsync(registerDto.Email);
+            // await _scope.ManuallyConfirmEmailAsync(registerDto.Email);
 
             var loginDto = Factory.Auth.GenerateValidLoginRequest();
 
@@ -101,9 +112,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             token.Should().NotBeNull();
             token.AccessToken.Should().NotBeNullOrEmpty();
-
-            //Cleanup
-            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
@@ -116,7 +124,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             registerResponse.EnsureSuccessStatusCode();
 
             // Manually confirm email
-            await _factory.ManuallyConfirmEmailAsync(registerDto.Email);
+            // await _scope.ManuallyConfirmEmailAsync(registerDto.Email);
             var loginDto = Factory.Auth.GenerateInValidLoginRequest();
 
             // Act
@@ -124,9 +132,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-            //Cleanup
-            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
@@ -139,7 +144,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             registerResponse.EnsureSuccessStatusCode();
 
             // Manually confirm email
-            await _factory.ManuallyConfirmEmailAsync(registerDto.Email);
+            // await _scope.ManuallyConfirmEmailAsync(registerDto.Email);
 
             var loginDto = Factory.Auth.GenerateValidLoginRequest();
 
@@ -165,9 +170,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             newToken.Should().NotBeNull();
             newToken.AccessToken.Should().NotBeNullOrEmpty();
-
-            //Cleanup
-            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
@@ -197,12 +199,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             registerResponse.EnsureSuccessStatusCode();
             var userId = await registerResponse.Content.ReadFromJsonAsync<Guid>();
 
-            // Fetch the user from the database or from the registration response
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null)
             {
-                throw new InvalidOperationException("User not found.");
+                throw new InvalidOperationException("User is not found.");
             }
 
             // Get email confirmation token using UserManager
@@ -215,8 +216,6 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             // Assert
             response.EnsureSuccessStatusCode();
             response.StatusCode.Should().Be(HttpStatusCode.OK);
-
-            //Cleanup
         }
 
         [Fact]

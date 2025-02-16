@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace InternIntelligence_UserLogin.Tests.Integration
 {
-    public class TestingWebAppFactory<TEntryPoint> : WebApplicationFactory<Program> where TEntryPoint : Program
+    public class TestingWebAppFactory : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -44,20 +44,13 @@ namespace InternIntelligence_UserLogin.Tests.Integration
                 }
 
                 // Register In-Memory Database
-                services.AddDbContext<AppDbContext>(options =>
+                services.AddDbContext<AppDbContext>((sp, options) =>
                 {
                     options.UseInMemoryDatabase("UseInMemoryDatabase");
+
+                    options.AddInterceptors(sp.GetRequiredService<CustomSaveChangesInterceptor>());
                 });
-
-                // Ensure database is initialized
-                using var serviceProvider = services.BuildServiceProvider();
-                using var scope = serviceProvider.CreateScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-                dbContext.Database.EnsureCreated();
             });
         }
-
-
     }
 }

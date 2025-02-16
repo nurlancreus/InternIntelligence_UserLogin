@@ -14,28 +14,41 @@ using InternIntelligence_UserLogin.Infrastructure;
 
 namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 {
-    public class UserEndpointsTests : IClassFixture<TestingWebAppFactory<Program>>
+    [Collection("Sequential")]
+    public class UserEndpointsTests : IClassFixture<TestingWebAppFactory>, IAsyncLifetime
     {
-        private readonly TestingWebAppFactory<Program> _factory;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly TestingWebAppFactory _factory;
         private readonly HttpClient _client;
+        private readonly IServiceScope _scope;
         private readonly AppDbContext _context;
-        private readonly string _superAdminToken;
 
-        public UserEndpointsTests(TestingWebAppFactory<Program> factory)
+        public UserEndpointsTests(TestingWebAppFactory factory)
         {
             _factory = factory;
-            _client = factory.CreateClient();
-            _userManager = factory.Services.CreateScope().ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-            _context = factory.Services.CreateScope().ServiceProvider.GetRequiredService<AppDbContext>();
+            _client = _factory.CreateClient();
+            _scope = factory.Services.CreateScope();
+            _context = _scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        }
 
-            _superAdminToken = Task.Run(async () => await _client.GetSuperAdminTokenAsync(_factory)).GetAwaiter().GetResult();
+        public async Task InitializeAsync()
+        {
+            await _context.Database.EnsureDeletedAsync();
+            await _context.Database.EnsureCreatedAsync();
+        }
+
+        public async Task DisposeAsync()
+        {
+            await _context.Database.EnsureDeletedAsync();
+            _scope.Dispose();
+            _client.Dispose();
         }
 
         [Fact]
         public async Task GetAllUsers_WhenWithAdminToken_ShouldReturnAllUsers()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             int usersCount = 2;
             int expectedUsersCount = usersCount + 1; // extra admin
 
@@ -52,15 +65,14 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             var users = await response.Content.ReadFromJsonAsync<List<UserDTO>>();
             users.Should().NotBeNull();
             users.Count.Should().Be(expectedUsersCount);
-             
-            // Cleanup
-            await _context.CleanupUsersDataAsync();
         }
 
         [Fact]
         public async Task GetUserById_WhenWithAdminToken_ShouldReturnUser()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var userId = await _client.RegisterSingleUser();
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"api/users/{userId}");
@@ -80,7 +92,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetUserById_WhenWithUserToken_ShouldReturnUser()
         {
             // Arrange
-            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_factory);
+            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_scope);
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"api/users/{userId}");
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -112,6 +124,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetUserRoles_WhenWithAdminToken_ShouldReturnUserRoles()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var userId = await _client.RegisterSingleUser();
             var roleId = await _client.CreateRole(_superAdminToken);
 
@@ -136,6 +150,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task AssignRolesToUser_WhenWithAdminToken_ShouldAssignRolesSuccessfully()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var userId = await _client.RegisterSingleUser();
             var roleId = await _client.CreateRole(_superAdminToken);
 
@@ -167,7 +183,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task RequestPasswordReset_WhenWithUserToken_ShouldReturnOk()
         {
             // Arrange
-            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_factory);
+            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_scope);
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"api/users/{userId}/reset-password");
 
@@ -181,10 +197,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         }
 
         [Fact]
-        public async Task ResetPassword__WhenWithUserToken_houldResetUserPassword()
+        public async Task ResetPassword__WhenWithUserToken_ShouldResetUserPassword()
         {
             // Arrange
-            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_factory);
+            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_scope);
 
             var resetTokenRequest = new HttpRequestMessage(HttpMethod.Get, $"api/users/{userId}/reset-password");
 
@@ -198,9 +214,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             if (user == null)
             {
-                throw new InvalidOperationException("User not found.");
+                throw new InvalidOperationException("User is not found.");
             }
 
+            var _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
             var encodedToken = token.UrlEncode();
             var newPassword = "NewStrongPassword123!";
@@ -243,13 +260,16 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+
         }
 
         [Fact]
         public async Task AssignRolesToUser_WhenWithUserToken_ShouldReturnForbidden()
         {
             // Arrange
-            var (userToken, userId) = await _client.RegisterAndLoginSingleUser(_factory);
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
+            var (userToken, userId) = await _client.RegisterAndLoginSingleUser(_scope);
             var roleId = await _client.CreateRole(_superAdminToken);
 
             var request = new HttpRequestMessage(HttpMethod.Patch, $"api/users/{userId}/assign-roles")
@@ -270,6 +290,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task AssignRolesToUser_WhenWithInvalidRoleId_ShouldReturnNotFound()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var userId = await _client.RegisterSingleUser();
             var invalidRoleId = Guid.NewGuid();
 
@@ -293,7 +315,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task ResetPassword_WhenWithInvalidToken_ShouldReturnBadRequest()
         {
             // Arrange
-            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_factory);
+            var (accessToken, userId) = await _client.RegisterAndLoginSingleUser(_scope);
 
             var invalidToken = "invalid-reset-token".UrlEncode();
             var newPassword = "NewStrongPassword123!";
@@ -316,6 +338,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetUserById_WhenWithInvalidUserId_ShouldReturnNotFound()
         {
             // Arrange
+            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+
             var invalidUserId = Guid.NewGuid();
 
             var request = new HttpRequestMessage(HttpMethod.Get, $"api/users/{invalidUserId}");
