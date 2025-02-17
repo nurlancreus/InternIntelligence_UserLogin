@@ -1,6 +1,134 @@
-@InternIntelligence_UserLogin.API_HostAddress = http://localhost:5253
+@baseUrl = {{HostAddress}}
 
-GET {{InternIntelligence_UserLogin.API_HostAddress}}/weatherforecast/
-Accept: application/json
+### AUTH ENDPOINTS
 
-###
+# Register a new user
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "FirstName": "User",
+  "LastName": "Userov",
+  "UserName": "userovvv",
+  "Email": "cafala6357@jarars.com",
+  "Password": "Ghujtyrtyu456$",
+  "ConfirmPassword": "Ghujtyrtyu456$"
+}
+
+### Login as Super Admin
+# @name loginSuperAdmin
+POST {{baseUrl}}/api/auth/login 
+Content-Type: application/json
+
+{
+  "Email": "{{SuperAdminEmail}}",
+  "Password": "{{SuperAdminPassword}}"
+}
+
+### Login as User
+# @name loginUser
+POST {{baseUrl}}/api/auth/login 
+Content-Type: application/json
+
+{
+  "Email": "cafala6357@jarars.com",
+  "Password": "Ghujtyrtyu456$"
+}
+
+### Refresh Login
+POST {{baseUrl}}/api/auth/refresh-login 
+Content-Type: application/json
+
+{
+  "AccessToken": "{{loginUser.response.body.$.accessToken}}",
+  "RefreshToken": "{{loginUser.response.body.$.refreshToken}}"
+}
+
+### Confirm Email
+PATCH {{baseUrl}}/api/auth/confirm-email?userId=75dc3736-850b-4603-9987-08dd4f44b6af&token=gfuewgfugewgfgwedewhifhweohfiewhfweh
+Authorization: Bearer {{loginUser.response.body.$.accessToken}}
+
+### USERS ENDPOINTS
+
+### Get all users (Super Admin only)
+GET {{baseUrl}}/api/users 
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Get specific user by ID (Super Admin only)
+GET {{baseUrl}}/api/users/75dc3736-850b-4603-9987-08dd4f44b6af
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Get own user details
+GET {{baseUrl}}/api/users/75dc3736-850b-4603-9987-08dd4f44b6af
+Authorization: Bearer {{loginUser.response.body.$.accessToken}}
+
+### Get roles assigned to a user (Super Admin only)
+GET {{baseUrl}}/api/users/75dc3736-850b-4603-9987-08dd4f44b6af/roles
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Assign roles to a user (Super Admin only)
+PATCH {{baseUrl}}/api/users/75dc3736-850b-4603-9987-08dd4f44b6af/assign-roles
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "RoleIds": []
+}
+
+### Request password reset
+GET {{baseUrl}}/api/users/75dc3736-850b-4603-9987-08dd4f44b6af/reset-password
+Authorization: Bearer {{loginUser.response.body.$.accessToken}}
+
+### Reset password
+PATCH {{baseUrl}}/api/users/reset-password?userId=75dc3736-850b-4603-9987-08dd4f44b6af&token=Q2ZESjhPU2Y5LzdJWGtKTmdTRVlBQ1RyT1VZaVdlVHoycWZOQUg5ZkRiYzZaOEhabFh2NzdoL3dvSTVVZ1ZlRDVaeXNtM2Npdm14V3piaURDYXM4cWJLVVlHSzBlRFIvM1dyMTM1ci9XN2tQMVFRYVVZZWJ4RFZ6OXA4UmVEKzBiWlRIYnpMbUQ2UGFhUnhXanUzdERDaWMxL0NMWExtbnRMekZaaXN3b2MrN05DaXhGSXEyaGpTVnhkb2hmYUhFZWVSMnRmcHlyTXdrYlZKZEc0N1FFQ0ZGS0Joa3FuVEFRcTAyVDJscmt4U2JjRk85
+Authorization: Bearer {{loginUser.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "NewPassword": "Ghujtyrtyu456$"
+}
+
+### ROLE ENDPOINTS
+
+### Get all roles (Admins only)
+GET {{baseUrl}}/api/roles
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Get a specific role by ID (Admins only)
+GET {{baseUrl}}/api/roles/0df6d98d-8818-4cab-9fa5-08dd4f526f01
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Get users assigned to a role by role ID (Admins only)
+GET {{baseUrl}}/api/roles/0df6d98d-8818-4cab-9fa5-08dd4f526f01/users
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Create a new role (Super Admin only)
+POST {{baseUrl}}/api/roles
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "Name": "NewRole5"
+}
+
+### Update a role by ID (Super Admin only)
+PATCH {{baseUrl}}/api/roles/0df6d98d-8818-4cab-9fa5-08dd4f526f01
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "Name": "UpdatedRoleName"
+}
+
+### Delete a role by ID (Super Admin only)
+DELETE {{baseUrl}}/api/roles/0df6d98d-8818-4cab-9fa5-08dd4f526f01
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+
+### Assign users to a role (Super Admin only)
+PATCH {{baseUrl}}/api/roles/0df6d98d-8818-4cab-9fa5-08dd4f526f01/assign-users
+Authorization: Bearer {{loginSuperAdmin.response.body.$.accessToken}}
+Content-Type: application/json
+
+{
+  "UserNames": ["adminsuper", "userovvv"]
+}
