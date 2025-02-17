@@ -197,11 +197,12 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             var user = await userManager.FindByIdAsync(userId.ToString());
 
-            var assignUsersDto = new List<string> { user!.UserName! };
-
             var request = new HttpRequestMessage(HttpMethod.Patch, $"api/roles/{roleId}/assign-users")
             {
-                Content = JsonContent.Create(assignUsersDto)
+                Content = JsonContent.Create(new AssignUsersDTO
+                {
+                    UserNames = [user!.UserName!]
+                })
             };
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
 

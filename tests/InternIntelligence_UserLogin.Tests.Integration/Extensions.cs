@@ -1,26 +1,17 @@
 ﻿using FluentAssertions;
-using InternIntelligence_UserLogin.API;
-using InternIntelligence_UserLogin.Core.DTOs.Auth;
 using InternIntelligence_UserLogin.Core.Entities;
 using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http.Json;
 using System.Net;
-using System.Text;
-using System.Threading.Tasks;
 using InternIntelligence_UserLogin.Tests.Common.Factories;
 using InternIntelligence_UserLogin.Infrastructure;
 using InternIntelligence_UserLogin.Core.DTOs.Token;
 using InternIntelligence_UserLogin.Tests.Common.Constants;
 using InternIntelligence_UserLogin.Core.DTOs.Role;
-using InternIntelligence_UserLogin.API.Endpoints;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
+using InternIntelligence_UserLogin.Core.DTOs.User;
 
 namespace InternIntelligence_UserLogin.Tests.Integration
 {
@@ -68,11 +59,14 @@ namespace InternIntelligence_UserLogin.Tests.Integration
                 }
             }
 
-            var addRoleResult = await userManager.AddToRoleAsync(superAdmin, Constants.Role.SuperAdmin);
-
-            if (!addRoleResult.Succeeded)
+            if (!await userManager.IsInRoleAsync(superAdmin, Constants.Role.SuperAdmin))
             {
-                throw new Exception($"Failed to assign 'SuperAdmin' role: {Helpers.GetIdentityResultError(addRoleResult)}");
+                var addRoleResult = await userManager.AddToRoleAsync(superAdmin, Constants.Role.SuperAdmin);
+
+                if (!addRoleResult.Succeeded)
+                {
+                    throw new Exception($"Failed to assign 'SuperAdmin' role: {Helpers.GetIdentityResultError(addRoleResult)}");
+                }
             }
 
             var loginRequest = new
@@ -179,7 +173,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration
         {
             var request = new HttpRequestMessage(HttpMethod.Patch, $"api/users/{userId}/assign-roles")
             {
-                Content = JsonContent.Create(new List<Guid> { roleId })
+                Content = JsonContent.Create(new AssignRolesDTO
+                {
+                    RoleIds = [roleId]
+                })
             };
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", superAdminAccessToken);

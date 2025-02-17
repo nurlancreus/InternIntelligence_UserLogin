@@ -26,8 +26,8 @@ namespace InternIntelligence_UserLogin.Tests.Common.Constants
             public const string SuperAdmin_FirstName = "Super";
             public const string SuperAdmin_LastName = "Adminov";
             public const string SuperAdmin_UserName = "superadmin";
-            public const string SuperAdmin_Email = "superadmin@test.com";
-            public const string SuperAdmin_Password= "SuperAdmin@123";
+            public const string SuperAdmin_Email = "admin@example.com";
+            public const string SuperAdmin_Password= "Ghujtyrtyu456$";
         }
 
         public static class Role

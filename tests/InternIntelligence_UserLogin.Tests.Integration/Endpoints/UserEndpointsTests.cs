@@ -157,7 +157,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             var request = new HttpRequestMessage(HttpMethod.Patch, $"api/users/{userId}/assign-roles")
             {
-                Content = JsonContent.Create(new List<Guid> { roleId })
+                Content = JsonContent.Create(new AssignRolesDTO
+                {
+                    RoleIds = [roleId]
+                })
             };
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
@@ -224,7 +227,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             var request = new HttpRequestMessage(HttpMethod.Patch, $"api/users/reset-password?userId={userId}&token={encodedToken}")
             {
-                Content = JsonContent.Create(newPassword)
+                Content = JsonContent.Create(new ResetPasswordDTO
+                {
+                    NewPassword = newPassword
+                })
             };
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -297,7 +303,10 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 
             var request = new HttpRequestMessage(HttpMethod.Patch, $"api/users/{userId}/assign-roles")
             {
-                Content = JsonContent.Create(new List<Guid> { invalidRoleId })
+                Content = JsonContent.Create(new AssignRolesDTO
+                {
+                    RoleIds = [invalidRoleId]
+                })
             };
 
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
