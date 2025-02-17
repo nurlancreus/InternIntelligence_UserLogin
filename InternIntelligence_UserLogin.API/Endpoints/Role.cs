@@ -58,9 +58,9 @@ namespace InternIntelligence_UserLogin.API.Endpoints
             })
             .RequireAuthorization(ApiConstants.AuthPolicies.SuperAdminPolicy);
 
-            role.MapPatch("{id}/assign-users", async ([FromRoute] Guid id, [FromBody] IEnumerable<string> userNames, IRoleService roleService, CancellationToken cancellationToken) =>
+            role.MapPatch("{id}/assign-users", async ([FromRoute] Guid id, [FromBody] AssignUsersDTO assignUsersDTO, IRoleService roleService, CancellationToken cancellationToken) =>
             {
-                await roleService.AssignUsersToRoleAsync(id, userNames, cancellationToken);
+                await roleService.AssignUsersToRoleAsync(id, assignUsersDTO.UserNames, cancellationToken);
 
                 return Results.Ok();
             })

@@ -1,4 +1,6 @@
-﻿using InternIntelligence_UserLogin.Core.Abstractions.Services;
+﻿using InternIntelligence_UserLogin.API.Validators;
+using InternIntelligence_UserLogin.Core.Abstractions.Services;
+using InternIntelligence_UserLogin.Core.DTOs.User;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InternIntelligence_UserLogin.API.Endpoints
@@ -30,9 +32,9 @@ namespace InternIntelligence_UserLogin.API.Endpoints
                 return Results.Ok(roles);
             }).RequireAuthorization(ApiConstants.AuthPolicies.AdminsPolicy);
 
-            user.MapPatch("{id}/assign-roles", async ([FromRoute] Guid id, [FromBody] IEnumerable<Guid> roleIds, IUserService userService, CancellationToken cancellationToken) =>
+            user.MapPatch("{id}/assign-roles", async ([FromRoute] Guid id, [FromBody] AssignRolesDTO assignRolesDTO, IUserService userService, CancellationToken cancellationToken) =>
             {
-                await userService.AssignRolesToUserAsync(id, roleIds, cancellationToken);
+                await userService.AssignRolesToUserAsync(id, assignRolesDTO.RoleIds, cancellationToken);
 
                 return Results.Ok();
             }).RequireAuthorization(ApiConstants.AuthPolicies.SuperAdminPolicy);
@@ -44,12 +46,13 @@ namespace InternIntelligence_UserLogin.API.Endpoints
                 return Results.Ok();
             }).RequireAuthorization(ApiConstants.AuthPolicies.UserPolicy);
 
-            user.MapPatch("reset-password", async (IUserService userService, [FromQuery] Guid userId, [FromQuery] string token, [FromBody] string newPassword) =>
+            user.MapPatch("reset-password", async (IUserService userService, [FromQuery] Guid userId, [FromQuery] string token, [FromBody] ResetPasswordDTO resetPasswordDTO) =>
             {
-                await userService.ResetPasswordAsync(userId, token, newPassword);
+                await userService.ResetPasswordAsync(userId, token, resetPasswordDTO.NewPassword);
 
                 return Results.Ok();
-            }).RequireAuthorization(ApiConstants.AuthPolicies.UserPolicy);
+            }).Validate<ResetPasswordDTO>()
+              .RequireAuthorization(ApiConstants.AuthPolicies.UserPolicy);
 
             return routes;
         }
