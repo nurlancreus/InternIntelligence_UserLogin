@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250213093954_init")]
+    [Migration("20250217110742_init")]
     partial class init
     {
         /// <inheritdoc />
@@ -57,6 +57,15 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context.Migrat
                         .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("AspNetRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("e1a0b1b0-0001-0000-0000-000000000001"),
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Name = "SuperAdmin",
+                            NormalizedName = "SUPERADMIN"
+                        });
                 });
 
             modelBuilder.Entity("InternIntelligence_UserLogin.Core.Entities.ApplicationUser", b =>
@@ -144,6 +153,29 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context.Migrat
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("AspNetUsers", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("e1a0b1b0-0001-0000-0000-000000000002"),
+                            AccessFailedCount = 0,
+                            ConcurrencyStamp = "6b3b9125-3009-45c4-bdca-4e67de8005cb",
+                            CreatedAt = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            Email = "admin@example.com",
+                            EmailConfirmed = true,
+                            FirstName = "Admin",
+                            LastName = "Super",
+                            LockoutEnabled = false,
+                            NormalizedEmail = "ADMIN@EXAMPLE.COM",
+                            NormalizedUserName = "ADMINSUPER",
+                            PasswordHash = "AQAAAAIAAYagAAAAEI1G9YyfG7rL8khWhtKRQKtVZ61YxQ0QOomYbVyrrzoLnVPJpk6w4zly5mXA7KD8Qw==",
+                            PhoneNumberConfirmed = false,
+                            RefreshToken = "",
+                            RefreshTokenEndDate = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
+                            SecurityStamp = "bb4922ca-c16b-4836-b53a-aebbcee19550",
+                            TwoFactorEnabled = false,
+                            UserName = "adminsuper"
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -223,20 +255,18 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context.Migrat
                     b.Property<Guid>("RoleId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Discriminator")
-                        .IsRequired()
-                        .HasMaxLength(34)
-                        .HasColumnType("nvarchar(34)");
-
                     b.HasKey("UserId", "RoleId");
 
                     b.HasIndex("RoleId");
 
                     b.ToTable("AspNetUserRoles", (string)null);
 
-                    b.HasDiscriminator().HasValue("IdentityUserRole<Guid>");
-
-                    b.UseTphMappingStrategy();
+                    b.HasData(
+                        new
+                        {
+                            UserId = new Guid("e1a0b1b0-0001-0000-0000-000000000002"),
+                            RoleId = new Guid("e1a0b1b0-0001-0000-0000-000000000001")
+                        });
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
@@ -256,23 +286,6 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context.Migrat
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
-                });
-
-            modelBuilder.Entity("InternIntelligence_UserLogin.Core.Entities.ApplicationUserRole", b =>
-                {
-                    b.HasBaseType("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>");
-
-                    b.Property<Guid>("RoleId1")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("UserId1")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasIndex("RoleId1");
-
-                    b.HasIndex("UserId1");
-
-                    b.HasDiscriminator().HasValue("ApplicationUserRole");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -324,35 +337,6 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context.Migrat
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("InternIntelligence_UserLogin.Core.Entities.ApplicationUserRole", b =>
-                {
-                    b.HasOne("InternIntelligence_UserLogin.Core.Entities.ApplicationRole", "Role")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("RoleId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("InternIntelligence_UserLogin.Core.Entities.ApplicationUser", "User")
-                        .WithMany("UserRoles")
-                        .HasForeignKey("UserId1")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Role");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("InternIntelligence_UserLogin.Core.Entities.ApplicationRole", b =>
-                {
-                    b.Navigation("UserRoles");
-                });
-
-            modelBuilder.Entity("InternIntelligence_UserLogin.Core.Entities.ApplicationUser", b =>
-                {
-                    b.Navigation("UserRoles");
                 });
 #pragma warning restore 612, 618
         }

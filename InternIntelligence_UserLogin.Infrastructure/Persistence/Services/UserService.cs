@@ -31,6 +31,20 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 
             if (user is null) throw new NotFoundException("User is not found.");
 
+            if (!roleIds.Any())
+            {
+                var userRoles = await _userManager.GetRolesAsync(user);
+
+                var removeResult = await _userManager.RemoveFromRolesAsync(user, userRoles);
+
+                if (!removeResult.Succeeded)
+                {
+                    throw new UpdateNotSucceededException($"User role removal failed: {Helpers.GetIdentityResultError(removeResult)}");
+                }
+
+                return;
+            }
+
             var roles = await _roleManager.Roles
                 .Where(r => roleIds.Contains(r.Id))
                 .Select(r => r.Name!)

@@ -6,6 +6,7 @@ using InternIntelligence_UserLogin.Core.Entities;
 using InternIntelligence_UserLogin.Core.Exceptions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using System.Linq;
 
 namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
@@ -31,6 +32,13 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
 
             if (role is null) throw new NotFoundException("Role is not found.");
 
+            if (!userNames.Any())
+            {
+                await RemoveUsersFromRoleAsync(role.Name!, userNames);
+
+                return;
+            }
+
             foreach (var userName in userNames)
             {
                 var user = await _userManager.FindByNameAsync(userName);
@@ -44,18 +52,7 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
                 }
             }
 
-            var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
-            foreach (var user in usersInRole)
-            {
-                if (!userNames.Contains(user.UserName))
-                {
-                    var result = await _userManager.RemoveFromRoleAsync(user, role.Name!);
-                    if (!result.Succeeded)
-                    {
-                        throw new UpdateNotSucceededException($"Failed to remove user {user.UserName} from role {role.Name}");
-                    }
-                }
-            }
+            await RemoveUsersFromRoleAsync(role.Name!, userNames);
         }
 
         public async Task<Guid> CreateAsync(CreateRoleDTO createRoleDTO, CancellationToken cancellationToken = default)
@@ -143,6 +140,23 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Services
             }
 
             return role.Id;
+        }
+
+        private async Task RemoveUsersFromRoleAsync(string roleName, IEnumerable<string> userNames)
+        {
+            var usersInRole = await _userManager.GetUsersInRoleAsync(roleName);
+
+            foreach (var user in usersInRole)
+            {
+                if (!userNames.Contains(user.UserName))
+                {
+                    var result = await _userManager.RemoveFromRoleAsync(user, roleName);
+                    if (!result.Succeeded)
+                    {
+                        throw new UpdateNotSucceededException($"Failed to remove user {user.UserName} from role {roleName}");
+                    }
+                }
+            }
         }
     }
 }

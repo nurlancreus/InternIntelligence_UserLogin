@@ -11,6 +11,8 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context
     {
         protected override void OnModelCreating(ModelBuilder builder)
         {
+            builder.SeedSuperAdmin();
+
             builder.ApplyConfigurationsFromAssembly(Assembly.GetAssembly(typeof(ApplicationUserConfiguration))!);
 
             base.OnModelCreating(builder);
