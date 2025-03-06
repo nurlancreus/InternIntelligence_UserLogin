@@ -37,6 +37,5 @@ namespace InternIntelligence_UserLogin.Infrastructure.Persistence.Context
                 }
             }
         }
-
     }
 }
