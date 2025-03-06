@@ -4,17 +4,26 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace InternIntelligence_UserLogin.Tests.Integration
 {
-    public class TestingWebAppFactory : WebApplicationFactory<Program>
+    public class TestingWebApplicationFactory : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
+            builder.ConfigureAppConfiguration((context, configBuilder) =>
+            {
+                configBuilder.AddUserSecrets<TestingWebApplicationFactory>();
+            });
+
             builder.UseEnvironment("Testing"); // Ensure tests use Test config
 
-            builder.ConfigureServices(services =>
+            builder.ConfigureServices((context, services) =>
             {
+                var config = context.Configuration;
+                var connectionString = config["ConnectionStrings:Default"] ?? "UseInMemoryDB"; // Ensure DB is from User Secrets
+
                 // Remove any existing DbContextOptions registrations
                 var contextOptionsDescriptor = services.SingleOrDefault(
                     d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
@@ -46,7 +55,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration
                 // Register In-Memory Database
                 services.AddDbContext<AppDbContext>((sp, options) =>
                 {
-                    options.UseInMemoryDatabase("UseInMemoryDatabase");
+                    options.UseInMemoryDatabase(connectionString);
 
                     options.AddInterceptors(sp.GetRequiredService<CustomSaveChangesInterceptor>());
                 });

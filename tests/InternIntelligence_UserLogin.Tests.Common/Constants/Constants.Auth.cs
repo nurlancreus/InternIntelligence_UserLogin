@@ -11,6 +11,8 @@ namespace InternIntelligence_UserLogin.Tests.Common.Constants
     {
         public static class Auth
         {
+            public const string InValid_AccessToken = "invalid-token";
+
             public const string FirstName_Valid = "Test";
             public const string LastName_Valid = "Testov";
             public const string UserName_Valid = "TestTestov";

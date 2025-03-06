@@ -1,7 +1,6 @@
 ﻿using InternIntelligence_UserLogin.Core.DTOs.Auth;
 using System.Net.Http.Json;
 using System.Net;
-using InternIntelligence_UserLogin.API;
 using FluentAssertions;
 using InternIntelligence_UserLogin.Tests.Common.Factories;
 using InternIntelligence_UserLogin.Core.DTOs.Token;
@@ -15,22 +14,22 @@ using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
 namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 {
     [Collection("Sequential")]
-    public class AuthEndpointsTests : IClassFixture<TestingWebAppFactory>, IAsyncLifetime
+    public class AuthEndpointsTests : IClassFixture<TestingWebApplicationFactory>, IAsyncLifetime
     {
-        private readonly TestingWebAppFactory _factory;
+        private readonly TestingWebApplicationFactory _factory;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly HttpClient _client;
         private readonly IServiceScope _scope;
         private readonly AppDbContext _context;
 
-        public AuthEndpointsTests(TestingWebAppFactory factory)
+        public AuthEndpointsTests(TestingWebApplicationFactory factory)
         {
             _factory = factory;
             _client = _factory.CreateClient();
-            _scope = factory.Services.CreateScope();
+            _scope = _factory.Services.CreateScope();
             _context = _scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-            _userManager = factory.Services.CreateScope().ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            _userManager = _scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         }
 
         public async Task InitializeAsync()
@@ -43,6 +42,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         {
             await _context.Database.EnsureDeletedAsync();
             _scope.Dispose();
+            _context.Dispose();
             _client.Dispose();
         }
 
@@ -50,7 +50,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task Register_WhenWithValidRequest_ShouldReturnSuccessStatusCodeAndUserId()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateValidRegisterRequest();
+            var registerDto = Factories.Auth.GenerateValidRegisterRequest();
 
             // Act
             var response = await _client.PostAsJsonAsync("api/auth/register", registerDto);
@@ -64,23 +64,23 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         }
 
         [Fact]
-        public async Task Register_WhenWithInValidRequest_ShouldReturnFailureStatusCode()
+        public async Task Register_WhenWithInValidRequest_ShouldReturnBadRequest()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateInValidRegisterRequest();
+            var registerDto = Factories.Auth.GenerateInValidRegisterRequest();
 
             // Act
             var response = await _client.PostAsJsonAsync("api/auth/register", registerDto);
 
             // Assert
-            response.StatusCode.Should().NotBe(HttpStatusCode.OK);
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         }
 
         [Fact]
-        public async Task Register_WhenWithConfirmPasswordInValidRequest_ShouldReturnFailureStatusCode()
+        public async Task Register_WhenWithConfirmPasswordInValidRequest_ShouldReturnBadRequest()
         {
             // Arrange
-            var registerDto = Factory.Auth.GeneratePasswordsInValidRegisterRequest();
+            var registerDto = Factories.Auth.GeneratePasswordsInValidRegisterRequest();
 
             // Act
             var response = await _client.PostAsJsonAsync("api/auth/register", registerDto);
@@ -93,15 +93,12 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task Login_WhenWithValidCredentials_ShouldReturnToken()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateValidRegisterRequest();
-            var registerResponse = await _client.PostAsJsonAsync("api/auth/register", registerDto);
-
-            registerResponse.EnsureSuccessStatusCode();
+            await _client.RegisterSingleUserAsync();
 
             // Manually confirm email
             // await _scope.ManuallyConfirmEmailAsync(registerDto.Email);
 
-            var loginDto = Factory.Auth.GenerateValidLoginRequest();
+            var loginDto = Factories.Auth.GenerateValidLoginRequest();
 
             // Act
             var response = await _client.PostAsJsonAsync("api/auth/login", loginDto);
@@ -118,14 +115,11 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task Login_WhenWithInvalidCredentials_ShouldReturnBadRequest()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateValidRegisterRequest();
-            var registerResponse = await _client.PostAsJsonAsync("api/auth/register", registerDto);
-
-            registerResponse.EnsureSuccessStatusCode();
+            await _client.RegisterSingleUserAsync();
 
             // Manually confirm email
             // await _scope.ManuallyConfirmEmailAsync(registerDto.Email);
-            var loginDto = Factory.Auth.GenerateInValidLoginRequest();
+            var loginDto = Factories.Auth.GenerateInValidLoginRequest();
 
             // Act
             var response = await _client.PostAsJsonAsync("api/auth/login", loginDto);
@@ -138,15 +132,9 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task RefreshLogin_WhenWithValidRequest_ShouldReturnNewToken()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateValidRegisterRequest();
-            var registerResponse = await _client.PostAsJsonAsync("api/auth/register", registerDto);
+            await _client.RegisterSingleUserAsync();
 
-            registerResponse.EnsureSuccessStatusCode();
-
-            // Manually confirm email
-            // await _scope.ManuallyConfirmEmailAsync(registerDto.Email);
-
-            var loginDto = Factory.Auth.GenerateValidLoginRequest();
+            var loginDto = Factories.Auth.GenerateValidLoginRequest();
 
             var loginResponse = await _client.PostAsJsonAsync("api/auth/login", loginDto);
 
@@ -178,8 +166,8 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
             // Arrange
             var refreshDto = new RefreshLoginDTO
             {
-                AccessToken = "wrong-access",
-                RefreshToken = "wrong-refresh"
+                AccessToken = "invalid-access",
+                RefreshToken = "invalid-refresh"
             };
 
             // Act
@@ -193,11 +181,7 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task ConfirmEmail_WhenWithValidRequest_ShouldReturnSuccess()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateValidRegisterRequest();
-            var registerResponse = await _client.PostAsJsonAsync("api/auth/register", registerDto);
-
-            registerResponse.EnsureSuccessStatusCode();
-            var userId = await registerResponse.Content.ReadFromJsonAsync<Guid>();
+            var userId = await _client.RegisterSingleUserAsync();
 
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
@@ -222,16 +206,13 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task ConfirmEmail_WhenWithInvalidToken_ShouldReturnBadRequest()
         {
             // Arrange
-            var registerDto = Factory.Auth.GenerateValidRegisterRequest();
-            var registerResponse = await _client.PostAsJsonAsync("api/auth/register", registerDto);
+            var userId = await _client.RegisterSingleUserAsync();
+            var invalidToken = "invalid";
 
-            registerResponse.EnsureSuccessStatusCode();
-            var userId = await registerResponse.Content.ReadFromJsonAsync<Guid>();
-            var encodedToken = "invalid".UrlEncode();
-
+            var encodedInValidToken = invalidToken.UrlEncode();
 
             // Act
-            var response = await _client.PatchAsync($"api/auth/confirm-email?userId={userId}&token={encodedToken}", null);
+            var response = await _client.PatchAsync($"api/auth/confirm-email?userId={userId}&token={encodedInValidToken}", null);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);

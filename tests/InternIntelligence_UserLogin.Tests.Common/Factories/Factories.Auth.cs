@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace InternIntelligence_UserLogin.Tests.Common.Factories
 {
-    public static partial class Factory
+    public static partial class Factories
     {
         public static class Role
         {
@@ -56,6 +56,7 @@ namespace InternIntelligence_UserLogin.Tests.Common.Factories
         }
         public static class Auth
         {
+            public static string GenerateInValidAccessToken() => Constants.Constants.Auth.InValid_AccessToken;
             public static IEnumerable<RegisterDTO> GenerateValidRegisterRequests(int usersCount = 4)
             {
                 for (int i = 1; i <= usersCount; i++)

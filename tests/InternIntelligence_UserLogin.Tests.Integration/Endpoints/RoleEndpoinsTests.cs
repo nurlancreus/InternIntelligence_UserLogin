@@ -8,18 +8,19 @@ using InternIntelligence_UserLogin.Core.DTOs.User;
 using InternIntelligence_UserLogin.Core.Entities;
 using Microsoft.AspNetCore.Identity;
 using InternIntelligence_UserLogin.Infrastructure.Persistence.Context;
+using InternIntelligence_UserLogin.Tests.Common.Factories;
 
 namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
 {
     [Collection("Sequential")]
-    public class RoleEndpointsTests : IClassFixture<TestingWebAppFactory>, IAsyncLifetime
+    public class RoleEndpointsTests : IClassFixture<TestingWebApplicationFactory>, IAsyncLifetime
     {
-        private readonly TestingWebAppFactory _factory;
+        private readonly TestingWebApplicationFactory _factory;
         private readonly HttpClient _client;
         private readonly IServiceScope _scope;
         private readonly AppDbContext _context;
 
-        public RoleEndpointsTests(TestingWebAppFactory factory)
+        public RoleEndpointsTests(TestingWebApplicationFactory factory)
         {
             _factory = factory;
             _client = _factory.CreateClient();
@@ -36,7 +37,9 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task DisposeAsync()
         {
             await _context.Database.EnsureDeletedAsync();
+
             _scope.Dispose();
+            _context.Dispose();
             _client.Dispose();
         }
 
@@ -44,18 +47,15 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetAllRoles_WhenWithSuperAdminToken_ShouldReturnAllRoles()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
             int rolesCount = 2;
             int expectedRolesCount = rolesCount + 1; // extra admin
 
-            await _client.CreateRoles(_superAdminToken, rolesCount);
-
-            var request = new HttpRequestMessage(HttpMethod.Get, "api/roles");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            await _client.CreateRolesAsync(accessToken, rolesCount);
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Get, "api/roles", _scope, accessToken: accessToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -69,18 +69,15 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetRoleById_WhenWithSuperAdminToken_ShouldReturnRole()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-
-            var request = new HttpRequestMessage(HttpMethod.Get, $"api/roles/{roleId}");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            var roleId = await _client.CreateRoleAsync(accessToken);
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Get, $"api/roles/{roleId}", _scope, accessToken: accessToken);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.EnsureSuccessStatusCode();
             var role = await response.Content.ReadFromJsonAsync<RoleDTO>();
             role.Should().NotBeNull();
             role.Id.Should().Be(roleId);
@@ -90,17 +87,15 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task GetRoleUsers_WhenWithSuperAdminToken_ShouldReturnUsersInRole()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-            var userId = await _client.RegisterSingleUser();
-            await _client.AssignRoleToUser(userId, roleId, _superAdminToken);
+            var roleId = await _client.CreateRoleAsync(accessToken);
+            var userId = await _client.RegisterSingleUserAsync();
 
-            var request = new HttpRequestMessage(HttpMethod.Get, $"api/roles/{roleId}/users");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            await _client.AssignRoleToUserAsync(userId, roleId, accessToken);
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Get, $"api/roles/{roleId}/users", _scope, accessToken: accessToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -113,24 +108,15 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task CreateRole_WhenWithSuperAdminTokenAndValidRequest_ShouldCreateRoleSuccessfully()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var createRoleDto = new CreateRoleDTO
-            {
-                Name = "NewRole"
-            };
-
-            var request = new HttpRequestMessage(HttpMethod.Post, "api/roles")
-            {
-                Content = JsonContent.Create(createRoleDto)
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            var requestBody = new CreateRoleDTO { Name = "NewRole" };
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Post, "api/roles", _scope, requestBody, accessToken: accessToken);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.EnsureSuccessStatusCode();
             var createdRoleId = await response.Content.ReadFromJsonAsync<Guid>();
             createdRoleId.Should().NotBeEmpty();
         }
@@ -139,25 +125,20 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithSuperAdminTokenAndValidRequest_ShouldUpdateRoleSuccessfully()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-            var updateRoleDto = new UpdateRoleDTO
+            var roleId = await _client.CreateRoleAsync(accessToken);
+
+            var requestBody = new UpdateRoleDTO
             {
                 Name = "UpdatedRole"
             };
 
-            var request = new HttpRequestMessage(HttpMethod.Patch, $"api/roles/{roleId}")
-            {
-                Content = JsonContent.Create(updateRoleDto)
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
-
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Patch, $"api/roles/{roleId}", _scope, requestBody, accessToken: accessToken);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.EnsureSuccessStatusCode();
             var updatedRoleId = await response.Content.ReadFromJsonAsync<Guid>();
             updatedRoleId.Should().Be(roleId);
         }
@@ -166,15 +147,12 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task DeleteRole_WhenWithSuperAdminToken_ShouldDeleteRoleSuccessfully()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-
-            var request = new HttpRequestMessage(HttpMethod.Delete, $"api/roles/{roleId}");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            var roleId = await _client.CreateRoleAsync(accessToken);
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Delete, $"api/roles/{roleId}", _scope, accessToken: accessToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -188,36 +166,28 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task AssignUsersToRole_WhenWithSuperAdminToken_ShouldAssignUsersSuccessfully()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-            var userId = await _client.RegisterSingleUser();
+            var roleId = await _client.CreateRoleAsync(accessToken);
+            var userId = await _client.RegisterSingleUserAsync();
 
             var userManager = _scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             var user = await userManager.FindByIdAsync(userId.ToString());
 
-            var request = new HttpRequestMessage(HttpMethod.Patch, $"api/roles/{roleId}/assign-users")
+            var requestBody = new AssignUsersDTO
             {
-                Content = JsonContent.Create(new AssignUsersDTO
-                {
-                    UserNames = [user!.UserName!]
-                })
+                UserNames = [user!.UserName!]
             };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
-
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Patch, $"api/roles/{roleId}/assign-users", _scope, requestBody, accessToken: accessToken);
 
             // Assert
-            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            response.EnsureSuccessStatusCode();
 
             // Verify user role assignment
-            var assignedRolesRequest = new HttpRequestMessage(HttpMethod.Get, $"api/users/{userId}/roles");
+            var assignedRolesResponse = await _client.SendRequestWithAccessToken(HttpMethod.Get, $"api/users/{userId}/roles", _scope, accessToken: accessToken);
 
-            assignedRolesRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
-
-            var assignedRolesResponse = await _client.SendAsync(assignedRolesRequest);
             var roles = await assignedRolesResponse.Content.ReadFromJsonAsync<List<RoleDTO>>();
 
             roles.Should().ContainSingle(r => r.Id == roleId);
@@ -255,21 +225,18 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         }
 
         [Fact]
-        public async Task UpdateRole_WhenWithoutToken_ShouldReturnUnauthorized()
+        public async Task UpdateRole_WhenWithInValidToken_ShouldReturnUnauthorized()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var invalidAccesToken = Factories.Auth.GenerateInValidAccessToken();
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-            var updateRoleDto = new UpdateRoleDTO { Name = "UpdatedRole" };
+            var roleId = await _client.CreateRoleAsync(accessToken);
 
-            var request = new HttpRequestMessage(HttpMethod.Patch, $"api/roles/{roleId}")
-            {
-                Content = JsonContent.Create(updateRoleDto)
-            };
+            var requestBody = new UpdateRoleDTO { Name = "UpdatedRole" };
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Patch, $"api/roles/{roleId}", _scope, requestBody, accessToken: invalidAccesToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -279,18 +246,12 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task CreateRole_WhenWithInvalidData_ShouldReturnBadRequest()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var createRoleDto = new CreateRoleDTO { Name = "" };
-
-            var request = new HttpRequestMessage(HttpMethod.Post, "api/roles")
-            {
-                Content = JsonContent.Create(createRoleDto)
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            var requestBody = new CreateRoleDTO { Name = "" };
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Post, "api/roles", _scope, requestBody, accessToken: accessToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -300,19 +261,13 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithInvalidData_ShouldReturnBadRequest()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var roleId = await _client.CreateRole(_superAdminToken);
-            var updateRoleDto = new UpdateRoleDTO { Name = "" }; // Empty name
-
-            var request = new HttpRequestMessage(HttpMethod.Patch, $"api/roles/{roleId}")
-            {
-                Content = JsonContent.Create(updateRoleDto)
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
+            var roleId = await _client.CreateRoleAsync(accessToken);
+            var requestBody = new UpdateRoleDTO { Name = "" };
 
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Patch, $"api/roles/{roleId}", _scope, requestBody, accessToken: accessToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -322,19 +277,13 @@ namespace InternIntelligence_UserLogin.Tests.Integration.Endpoints
         public async Task UpdateRole_WhenWithNonExistentRoleId_ShouldReturnNotFound()
         {
             // Arrange
-            var _superAdminToken = await _client.GetSuperAdminTokenAsync(_scope);
+            var accessToken = await _client.GetSuperAdminTokenAsync(_scope);
 
-            var updateRoleDto = new UpdateRoleDTO { Name = "UpdatedRole" };
+            var requestBody = new UpdateRoleDTO { Name = "UpdatedRole" };
             var nonExistentRoleId = Guid.NewGuid();
 
-            var request = new HttpRequestMessage(HttpMethod.Patch, $"api/roles/{nonExistentRoleId}")
-            {
-                Content = JsonContent.Create(updateRoleDto)
-            };
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _superAdminToken);
-
             // Act
-            var response = await _client.SendAsync(request);
+            var response = await _client.SendRequestWithAccessToken(HttpMethod.Patch, $"api/roles/{nonExistentRoleId}", _scope, requestBody, accessToken: accessToken);
 
             // Assert
             response.StatusCode.Should().Be(HttpStatusCode.NotFound);
